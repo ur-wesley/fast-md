@@ -16,6 +16,14 @@ pub struct CliArgs {
     /// Initial theme: dark, midnight, light, nord, solarized, mocha, macchiato, frappe, latte.
     #[arg(short = 't', long = "theme", value_name = "THEME")]
     pub theme: Option<String>,
+
+    /// Register Fast-MD in Windows Explorer and Default Apps for .md files.
+    #[arg(long = "register")]
+    pub register: bool,
+
+    /// Unregister Fast-MD file associations.
+    #[arg(long = "unregister")]
+    pub unregister: bool,
 }
 
 impl CliArgs {

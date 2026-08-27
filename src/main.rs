@@ -221,6 +221,30 @@ fn resolve_cli_path(raw_path: Option<&PathBuf>) -> Option<PathBuf> {
 
 fn main() {
     let args = CliArgs::parse_safe();
+
+    if args.register {
+        if services::association::register_file_associations() {
+            println!("Successfully registered Fast-MD in Windows Explorer and Default Apps.");
+        } else {
+            eprintln!("Failed to register file associations.");
+        }
+        return;
+    }
+
+    if args.unregister {
+        if services::association::unregister_file_associations() {
+            println!("Successfully unregistered Fast-MD file associations.");
+        } else {
+            eprintln!("Failed to unregister file associations.");
+        }
+        return;
+    }
+
+    // Auto-register file associations on startup in background
+    std::thread::spawn(|| {
+        let _ = services::association::register_file_associations();
+    });
+
     let _ = CLI_ARGS.set(args);
 
     let config = Config::new()
@@ -244,6 +268,8 @@ fn App() -> Element {
         path: None,
         zen: false,
         theme: None,
+        register: false,
+        unregister: false,
     });
 
     let cli_theme = cli_args.theme.as_deref().and_then(|t| match t.to_lowercase().as_str() {

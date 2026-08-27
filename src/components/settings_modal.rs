@@ -1,4 +1,9 @@
-use crate::services::settings::{get_settings_file_path, open_settings_in_editor, reveal_settings_folder};
+use crate::services::association::{
+    is_file_associations_registered, open_default_apps_settings, register_file_associations,
+};
+use crate::services::settings::{
+    get_settings_file_path, open_settings_in_editor, reveal_settings_folder,
+};
 use crate::state::AppStore;
 use crate::types::{AppTheme, SidebarTab};
 use dioxus::prelude::*;
@@ -25,6 +30,7 @@ enum SettingsTab {
 pub fn SettingsModal(props: SettingsModalProps) -> Element {
     let mut current_tab = use_signal(|| SettingsTab::Appearance);
     let mut copy_feedback = use_signal(|| false);
+    let mut assoc_registered = use_signal(is_file_associations_registered);
     let mut store = props.store;
     let store_read = store();
 
@@ -440,6 +446,40 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                 }
                                 p { class: "text-xs text-[var(--text-muted)] m-0", "Quickly reopen recent markdown documents and project trees from memory." }
                             }
+
+                            // OS Shell & Explorer File Associations
+                            div {
+                                class: "p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl flex flex-col gap-3",
+                                div {
+                                    class: "flex items-center justify-between",
+                                    div {
+                                        h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "Explorer & Shell Integration" }
+                                        p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Suggest Fast-MD in File Explorer 'Open with' and allow setting as default for .md, .markdown, .mdx files." }
+                                    }
+                                }
+                                div {
+                                    class: "flex flex-wrap items-center gap-2 mt-0.5",
+                                    button {
+                                        class: "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-color)] text-xs text-[var(--text-heading)] font-medium hover:bg-[var(--bg-hover)] cursor-pointer transition-colors",
+                                        onclick: move |_| {
+                                            let success = register_file_associations();
+                                            assoc_registered.set(success);
+                                        },
+                                        if assoc_registered() {
+                                            Icon { width: 13, height: 13, icon: LdCheck, class: "text-emerald-400" }
+                                        } else {
+                                            Icon { width: 13, height: 13, icon: LdSparkles, class: "text-[var(--accent)]" }
+                                        }
+                                        span { if assoc_registered() { "Registered in Explorer" } else { "Register in Explorer" } }
+                                    }
+                                    button {
+                                        class: "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-color)] text-xs text-[var(--text-heading)] font-medium hover:bg-[var(--bg-hover)] cursor-pointer transition-colors",
+                                        onclick: move |_| open_default_apps_settings(),
+                                        Icon { width: 13, height: 13, icon: LdExternalLink }
+                                        span { "Open Default Apps Settings" }
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -530,7 +570,7 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                 // Modal Footer
                 div {
                     class: "settings-modal-footer flex items-center justify-between px-6 py-3.5 border-t border-[var(--border-color)] bg-[var(--bg-surface)]",
-                    span { class: "text-[11px] font-mono text-[var(--text-muted)]", "Fast-MD v0.1.0 • Native Dioxus" }
+                    span { class: "text-[11px] font-mono text-[var(--text-muted)]", "Fast-MD v{env!(\"CARGO_PKG_VERSION\")} • Native Dioxus" }
                     button {
                         class: "h-8 px-5 rounded-lg bg-[var(--accent)] hover:opacity-90 text-white text-xs font-semibold cursor-pointer border-0 transition-opacity shadow-md",
                         onclick: move |_| store.write().set_settings_modal(false),
