@@ -1,4 +1,4 @@
-use crate::types::DocMetadata;
+use crate::types::{DocMetadata, Language};
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::ld_icons::{LdCalendar, LdTag, LdUser};
@@ -6,11 +6,13 @@ use dioxus_free_icons::icons::ld_icons::{LdCalendar, LdTag, LdUser};
 #[derive(Props, Clone, PartialEq, Eq)]
 pub struct FrontmatterCardProps {
     pub metadata: DocMetadata,
+    pub language: Language,
 }
 
 #[component]
 pub fn FrontmatterCard(props: FrontmatterCardProps) -> Element {
     let meta = &props.metadata;
+    let t = props.language.strings();
 
     rsx! {
         div {
@@ -27,7 +29,7 @@ pub fn FrontmatterCard(props: FrontmatterCardProps) -> Element {
                     div {
                         class: "frontmatter-badge inline-flex items-center bg-[var(--bg-subtle)] px-2 py-0.5 rounded text-xs text-[var(--text-muted)] gap-1",
                         Icon { width: 12, height: 12, icon: LdUser, class: "text-[var(--accent)] shrink-0" }
-                        span { class: "badge-label font-semibold", "Author: " }
+                        span { class: "badge-label font-semibold", "{t.frontmatter.author}" }
                         span { class: "badge-value", "{author}" }
                     }
                 }
@@ -35,7 +37,7 @@ pub fn FrontmatterCard(props: FrontmatterCardProps) -> Element {
                     div {
                         class: "frontmatter-badge inline-flex items-center bg-[var(--bg-subtle)] px-2 py-0.5 rounded text-xs text-[var(--text-muted)] gap-1",
                         Icon { width: 12, height: 12, icon: LdCalendar, class: "text-[var(--accent)] shrink-0" }
-                        span { class: "badge-label font-semibold", "Date: " }
+                        span { class: "badge-label font-semibold", "{t.frontmatter.date}" }
                         span { class: "badge-value", "{date}" }
                     }
                 }

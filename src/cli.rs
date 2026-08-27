@@ -17,6 +17,10 @@ pub struct CliArgs {
     #[arg(short = 't', long = "theme", value_name = "THEME")]
     pub theme: Option<String>,
 
+    /// Interface language: en, de.
+    #[arg(short = 'l', long = "lang", value_name = "LANG")]
+    pub lang: Option<String>,
+
     /// Register Fast-MD in Windows Explorer and Default Apps for .md files.
     #[arg(long = "register")]
     pub register: bool,

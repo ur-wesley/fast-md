@@ -1,13 +1,16 @@
+use crate::types::Language;
 use dioxus::prelude::*;
 
 #[derive(Props, Clone, PartialEq)]
 pub struct SearchBarProps {
+    pub language: Language,
     pub on_close: EventHandler<()>,
 }
 
 #[component]
 pub fn SearchBar(props: SearchBarProps) -> Element {
     let mut search_text = use_signal(String::new);
+    let t = props.language.strings();
 
     use_effect(move || {
         // Auto focus and select input when search opens
@@ -36,7 +39,7 @@ pub fn SearchBar(props: SearchBarProps) -> Element {
             input {
                 class: "search-text-input bg-transparent border-0 text-[var(--text-main)] text-xs outline-none w-52 placeholder:text-[var(--text-muted)]",
                 r#type: "text",
-                placeholder: "Find in document...",
+                placeholder: "{t.search_bar.placeholder}",
                 value: "{search_text}",
                 autofocus: true,
                 oninput: move |evt| {
@@ -65,7 +68,7 @@ pub fn SearchBar(props: SearchBarProps) -> Element {
             div { class: "search-divider w-[1px] h-3.5 bg-[var(--border-color)] shrink-0" }
             button {
                 class: "search-action-btn flex items-center justify-center w-5 h-5 bg-transparent border-0 text-[var(--text-muted)] cursor-pointer text-xs rounded hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] transition-colors",
-                title: "Previous Match (Shift+Enter)",
+                title: "{t.search_bar.prev_match}",
                 onclick: move |_| {
                     dioxus::prelude::document::eval("window.searchPrevMatch && window.searchPrevMatch();");
                 },
@@ -78,7 +81,7 @@ pub fn SearchBar(props: SearchBarProps) -> Element {
             }
             button {
                 class: "search-action-btn flex items-center justify-center w-5 h-5 bg-transparent border-0 text-[var(--text-muted)] cursor-pointer text-xs rounded hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] transition-colors",
-                title: "Next Match (Enter)",
+                title: "{t.search_bar.next_match}",
                 onclick: move |_| {
                     dioxus::prelude::document::eval("window.searchNextMatch && window.searchNextMatch();");
                 },
@@ -91,7 +94,7 @@ pub fn SearchBar(props: SearchBarProps) -> Element {
             }
             button {
                 class: "search-close-btn flex items-center justify-center w-5 h-5 bg-transparent border-0 text-[var(--text-muted)] cursor-pointer text-xs rounded hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] transition-colors",
-                title: "Close Search (Esc)",
+                title: "{t.search_bar.close_search}",
                 onclick: move |_| {
                     dioxus::prelude::document::eval("window.clearSearchHighlights && window.clearSearchHighlights();");
                     props.on_close.call(());

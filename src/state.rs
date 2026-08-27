@@ -1,7 +1,7 @@
 use crate::services::fs::{read_document_file, scan_markdown_tree};
 use crate::services::markdown::parse_markdown_document;
 use crate::services::settings::{load_settings, save_settings};
-use crate::types::{AppSettings, AppTheme, FileTreeEntry, SidebarTab, TabItem};
+use crate::types::{AppSettings, AppTheme, FileTreeEntry, Language, SidebarTab, TabItem};
 use std::path::{Path, PathBuf};
 
 pub const WELCOME_DOC: &str = r#"---
@@ -95,6 +95,7 @@ pub struct AppStore {
     pub tabs: Vec<TabItem>,
     pub active_tab_id: usize,
     pub next_tab_id: usize,
+    pub language: Language,
     pub theme: AppTheme,
     pub primary_color: Option<String>,
     pub is_zen: bool,
@@ -124,6 +125,7 @@ impl Default for AppStore {
             }],
             active_tab_id: 1,
             next_tab_id: 2,
+            language: settings.language,
             theme: settings.theme,
             primary_color: settings.primary_color.clone(),
             is_zen: false,
@@ -142,13 +144,20 @@ impl Default for AppStore {
 }
 
 impl AppStore {
-    /// Initialize state with optional startup path, CLI theme override, and zen mode flags.
+    /// Initialize state with optional startup path, CLI theme/language override, and zen mode flags.
     #[must_use]
-    pub fn new_with_options(initial_path: Option<&Path>, cli_theme: Option<AppTheme>, zen: bool) -> Self {
+    pub fn new_with_options(
+        initial_path: Option<&Path>,
+        cli_theme: Option<AppTheme>,
+        cli_lang: Option<Language>,
+        zen: bool,
+    ) -> Self {
         let settings = load_settings();
         let effective_theme = cli_theme.unwrap_or(settings.theme);
+        let effective_language = cli_lang.unwrap_or(settings.language);
 
         let mut store = Self {
+            language: effective_language,
             theme: effective_theme,
             primary_color: settings.primary_color.clone(),
             is_zen: zen,
@@ -392,6 +401,7 @@ impl AppStore {
     }
 
     /// Toggle sticky markdown headers setting and persist.
+    #[allow(dead_code)]
     pub fn toggle_sticky_headers(&mut self) {
         self.sticky_headers = !self.sticky_headers;
         self.settings.sticky_headers = self.sticky_headers;
@@ -404,9 +414,18 @@ impl AppStore {
         self.persist_settings();
     }
 
+    /// Set language and persist.
+    #[allow(dead_code)]
+    pub fn set_language(&mut self, language: Language) {
+        self.language = language;
+        self.settings.language = language;
+        self.persist_settings();
+    }
+
     /// Reset all settings to application defaults and persist.
     pub fn reset_settings_to_default(&mut self) {
         let defaults = AppSettings::default();
+        self.language = defaults.language;
         self.theme = defaults.theme;
         self.primary_color.clone_from(&defaults.primary_color);
         self.is_full_width = defaults.is_full_width;
@@ -426,6 +445,7 @@ mod tests {
     #[test]
     fn test_primary_color_selection() {
         let mut store = AppStore::default();
+        store.set_primary_color(None);
         // Select Catppuccin Mocha
         store.set_theme(AppTheme::CatppuccinMocha);
         assert_eq!(store.effective_primary_color(), "#cba6f7"); // Mocha default accent
@@ -443,6 +463,12 @@ mod tests {
     fn test_store_settings_sync() {
         let mut store = AppStore::default();
         store.reset_settings_to_default();
+        assert_eq!(store.language, Language::En);
+
+        store.set_language(Language::De);
+        assert_eq!(store.language, Language::De);
+        assert_eq!(store.settings.language, Language::De);
+
         store.set_theme(AppTheme::CatppuccinFrappe);
         assert_eq!(store.settings.theme, AppTheme::CatppuccinFrappe);
 
@@ -458,6 +484,8 @@ mod tests {
         assert!(store.settings.sticky_headers);
 
         store.reset_settings_to_default();
+        assert_eq!(store.settings.language, Language::En);
+        assert_eq!(store.language, Language::En);
         assert_eq!(store.settings.theme, AppTheme::Dark);
         assert_eq!(store.theme, AppTheme::Dark);
         assert!(!store.is_full_width);

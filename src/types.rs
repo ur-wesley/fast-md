@@ -74,6 +74,7 @@ impl AppTheme {
     }
 
     #[must_use]
+    #[allow(dead_code)]
     pub const fn label(self) -> &'static str {
         match self {
             Self::Dark => "GitHub Dark",
@@ -104,6 +105,7 @@ impl AppTheme {
     }
 
     #[must_use]
+    #[allow(dead_code)]
     pub const fn default_bg(self) -> &'static str {
         match self {
             Self::Dark => "#161b22",
@@ -140,6 +142,41 @@ impl AppTheme {
     }
 }
 
+/// User interface display language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Language {
+    #[default]
+    En,
+    De,
+}
+
+impl Language {
+    #[must_use]
+    #[allow(dead_code)]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::En => "en",
+            Self::De => "de",
+        }
+    }
+
+    #[must_use]
+    #[allow(dead_code)]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::En => "English",
+            Self::De => "Deutsch",
+        }
+    }
+
+    #[must_use]
+    #[allow(dead_code)]
+    pub const fn strings(self) -> &'static crate::i18n::Translations {
+        crate::i18n::t(self)
+    }
+}
+
 /// Active sidebar tab.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -165,6 +202,10 @@ const fn default_font_size() -> u32 {
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppSettings {
+    /// User interface language.
+    #[serde(default)]
+    pub language: Language,
+
     /// Visual theme.
     #[serde(default)]
     pub theme: AppTheme,
@@ -221,6 +262,7 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            language: Language::En,
             theme: AppTheme::Dark,
             primary_color: None,
             is_full_width: false,
@@ -347,5 +389,25 @@ mod tests {
         settings.add_recent_file(PathBuf::from("file_5.md"));
         assert_eq!(settings.recent_files.len(), 10);
         assert_eq!(settings.recent_files[0], PathBuf::from("file_5.md"));
+    }
+
+    #[test]
+    fn test_language_enum_and_serialization() {
+        assert_eq!(Language::En.code(), "en");
+        assert_eq!(Language::De.code(), "de");
+        assert_eq!(Language::En.label(), "English");
+        assert_eq!(Language::De.label(), "Deutsch");
+
+        let json_en = serde_json::to_string(&Language::En).unwrap_or_default();
+        assert_eq!(json_en, "\"en\"");
+
+        let json_de = serde_json::to_string(&Language::De).unwrap_or_default();
+        assert_eq!(json_de, "\"de\"");
+
+        let parsed_de: Language = serde_json::from_str("\"de\"").unwrap_or_default();
+        assert_eq!(parsed_de, Language::De);
+
+        let parsed_en: Language = serde_json::from_str("\"en\"").unwrap_or_default();
+        assert_eq!(parsed_en, Language::En);
     }
 }

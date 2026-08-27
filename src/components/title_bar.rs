@@ -12,6 +12,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
     let mut search_query = use_signal(String::new);
     let store = props.store;
     let store_read = store();
+    let t = store_read.language.strings();
 
     let active_tab = store_read.active_tab();
     let doc_title = active_tab.map_or_else(|| "Fast-MD".to_string(), |t| t.title.clone());
@@ -19,7 +20,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
     let breadcrumb = if let Some(ref folder) = store_read.opened_folder {
         let folder_name = folder
             .file_name()
-            .map_or_else(|| "Workspace".to_string(), |f| f.to_string_lossy().to_string());
+            .map_or_else(|| t.title_bar.workspace.to_string(), |f| f.to_string_lossy().to_string());
         format!("{folder_name} / {doc_title}")
     } else {
         doc_title
@@ -118,7 +119,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
                         id: "titlebar-search-input",
                         class: "titlebar-search-input flex-1 bg-transparent border-0 text-[var(--text-main)] text-xs outline-none min-w-0 placeholder:text-[var(--text-muted)]",
                         r#type: "text",
-                        placeholder: "Search document...",
+                        placeholder: "{t.title_bar.search_placeholder}",
                         value: "{query_val}",
                         oninput: move |evt| {
                             let val = evt.value();
@@ -148,7 +149,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
                     if has_query {
                         button {
                             class: "search-control-btn flex items-center justify-center w-4 h-4 bg-transparent border-0 text-[var(--text-muted)] hover:text-[var(--text-heading)] rounded cursor-pointer transition-colors",
-                            title: "Previous Match (Shift+Enter)",
+                            title: "{t.title_bar.prev_match}",
                             onclick: move |_| {
                                 dioxus::prelude::document::eval("window.searchPrevMatch && window.searchPrevMatch();");
                             },
@@ -161,7 +162,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
                         }
                         button {
                             class: "search-control-btn flex items-center justify-center w-4 h-4 bg-transparent border-0 text-[var(--text-muted)] hover:text-[var(--text-heading)] rounded cursor-pointer transition-colors",
-                            title: "Next Match (Enter)",
+                            title: "{t.title_bar.next_match}",
                             onclick: move |_| {
                                 dioxus::prelude::document::eval("window.searchNextMatch && window.searchNextMatch();");
                             },
@@ -174,7 +175,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
                         }
                         button {
                             class: "search-control-btn search-clear-btn flex items-center justify-center w-4 h-4 bg-transparent border-0 text-[var(--text-muted)] hover:text-[var(--text-heading)] rounded cursor-pointer transition-colors",
-                            title: "Clear Search (Esc)",
+                            title: "{t.title_bar.clear_search}",
                             onclick: move |_| {
                                 search_query.set(String::new());
                                 dioxus::prelude::document::eval("window.clearSearchHighlights && window.clearSearchHighlights();");
@@ -192,7 +193,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
                             onclick: move |_| {
                                 dioxus::prelude::document::eval("const el = document.getElementById('titlebar-search-input'); if (el) { el.focus(); el.select(); }");
                             },
-                            "Ctrl F"
+                            "{t.title_bar.shortcut_ctrl_f}"
                         }
                     }
                 }
@@ -205,7 +206,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
 
                 button {
                     class: "window-control-btn btn-minimize flex items-center justify-center w-11 h-[38px] bg-transparent border-0 text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] cursor-pointer transition-colors duration-150",
-                    title: "Minimize",
+                    title: "{t.title_bar.minimize}",
                     onclick: move |_| {
                         window().set_minimized(true);
                     },
@@ -224,7 +225,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
 
                 button {
                     class: "window-control-btn btn-maximize flex items-center justify-center w-11 h-[38px] bg-transparent border-0 text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] cursor-pointer transition-colors duration-150",
-                    title: if is_maximized { "Restore" } else { "Maximize" },
+                    title: if is_maximized { "{t.title_bar.restore}" } else { "{t.title_bar.maximize}" },
                     onclick: move |_| {
                         let win = window();
                         win.set_maximized(!win.is_maximized());
@@ -262,7 +263,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
 
                 button {
                     class: "window-control-btn btn-close flex items-center justify-center w-11 h-[38px] bg-transparent border-0 text-[var(--text-muted)] hover:bg-[#e81123] hover:text-white cursor-pointer transition-colors duration-150",
-                    title: "Close",
+                    title: "{t.title_bar.close}",
                     onclick: move |_| {
                         window().close();
                     },

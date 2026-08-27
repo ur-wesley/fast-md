@@ -5,7 +5,7 @@ use crate::services::settings::{
     get_settings_file_path, open_settings_in_editor, reveal_settings_folder,
 };
 use crate::state::AppStore;
-use crate::types::{AppTheme, SidebarTab};
+use crate::types::{AppTheme, Language, SidebarTab};
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::ld_icons::{
@@ -33,6 +33,7 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
     let mut assoc_registered = use_signal(is_file_associations_registered);
     let mut store = props.store;
     let store_read = store();
+    let t = store_read.language.strings();
 
     let catppuccin_themes = [
         (AppTheme::CatppuccinMocha, "Mocha", "#cba6f7", "#1e1e2e"),
@@ -93,13 +94,13 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                             class: "text-[var(--accent)] shrink-0",
                         }
                         div {
-                            h2 { class: "text-base font-bold text-[var(--text-heading)] m-0 leading-tight", "Preferences & Settings" }
-                            p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Saved automatically to settings.json" }
+                            h2 { class: "text-base font-bold text-[var(--text-heading)] m-0 leading-tight", "{t.settings.modal_title}" }
+                            p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.auto_save_notice}" }
                         }
                     }
                     button {
                         class: "settings-close-btn w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer border-0 bg-transparent",
-                        title: "Close (Esc)",
+                        title: "{t.settings.close_tooltip}",
                         onclick: move |_| {
                             store.write().set_settings_modal(false);
                         },
@@ -114,25 +115,25 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                         class: if active_tab_enum == SettingsTab::Appearance { "settings-tab-btn active py-2.5 px-3 border-b-2 border-[var(--accent)] text-[var(--accent)] text-xs font-semibold cursor-pointer bg-transparent border-t-0 border-x-0 transition-all inline-flex items-center gap-1.5" } else { "settings-tab-btn py-2.5 px-3 border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text-heading)] text-xs font-medium cursor-pointer bg-transparent border-t-0 border-x-0 transition-all inline-flex items-center gap-1.5" },
                         onclick: move |_| current_tab.set(SettingsTab::Appearance),
                         Icon { width: 14, height: 14, icon: LdPalette }
-                        span { "Appearance" }
+                        span { "{t.settings.tab_appearance}" }
                     }
                     button {
                         class: if active_tab_enum == SettingsTab::Reader { "settings-tab-btn active py-2.5 px-3 border-b-2 border-[var(--accent)] text-[var(--accent)] text-xs font-semibold cursor-pointer bg-transparent border-t-0 border-x-0 transition-all inline-flex items-center gap-1.5" } else { "settings-tab-btn py-2.5 px-3 border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text-heading)] text-xs font-medium cursor-pointer bg-transparent border-t-0 border-x-0 transition-all inline-flex items-center gap-1.5" },
                         onclick: move |_| current_tab.set(SettingsTab::Reader),
                         Icon { width: 14, height: 14, icon: LdBookOpen }
-                        span { "Reader & Layout" }
+                        span { "{t.settings.tab_reader}" }
                     }
                     button {
                         class: if active_tab_enum == SettingsTab::Workspace { "settings-tab-btn active py-2.5 px-3 border-b-2 border-[var(--accent)] text-[var(--accent)] text-xs font-semibold cursor-pointer bg-transparent border-t-0 border-x-0 transition-all inline-flex items-center gap-1.5" } else { "settings-tab-btn py-2.5 px-3 border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text-heading)] text-xs font-medium cursor-pointer bg-transparent border-t-0 border-x-0 transition-all inline-flex items-center gap-1.5" },
                         onclick: move |_| current_tab.set(SettingsTab::Workspace),
                         Icon { width: 14, height: 14, icon: LdFolderTree }
-                        span { "Workspace & Sidebar" }
+                        span { "{t.settings.tab_workspace}" }
                     }
                     button {
                         class: if active_tab_enum == SettingsTab::ConfigFile { "settings-tab-btn active py-2.5 px-3 border-b-2 border-[var(--accent)] text-[var(--accent)] text-xs font-semibold cursor-pointer bg-transparent border-t-0 border-x-0 transition-all inline-flex items-center gap-1.5" } else { "settings-tab-btn py-2.5 px-3 border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text-heading)] text-xs font-medium cursor-pointer bg-transparent border-t-0 border-x-0 transition-all inline-flex items-center gap-1.5" },
                         onclick: move |_| current_tab.set(SettingsTab::ConfigFile),
                         Icon { width: 14, height: 14, icon: LdFileCode2 }
-                        span { "Settings File" }
+                        span { "{t.settings.tab_config_file}" }
                     }
                 }
 
@@ -148,8 +149,8 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
 
                             div {
                                 class: "section-header",
-                                h3 { class: "text-sm font-semibold text-[var(--text-heading)] m-0", "Theme Presets" }
-                                p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Select your preferred color scheme and glassmorphism styling." }
+                                h3 { class: "text-sm font-semibold text-[var(--text-heading)] m-0", "{t.settings.theme_presets_title}" }
+                                p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.theme_presets_desc}" }
                             }
 
                             // Catppuccin Themes
@@ -158,7 +159,7 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                 span {
                                     class: "text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider inline-flex items-center gap-1.5",
                                     Icon { width: 12, height: 12, icon: LdSparkles, class: "text-[var(--accent)]" }
-                                    "Catppuccin Flavors"
+                                    "{t.settings.catppuccin_flavors}"
                                 }
                                 div {
                                     class: "grid grid-cols-2 sm:grid-cols-4 gap-2",
@@ -183,7 +184,7 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                 span {
                                     class: "text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider inline-flex items-center gap-1.5",
                                     Icon { width: 12, height: 12, icon: LdZap, class: "text-[var(--accent)]" }
-                                    "Classic Themes"
+                                    "{t.settings.classic_themes}"
                                 }
                                 div {
                                     class: "grid grid-cols-2 sm:grid-cols-3 gap-2",
@@ -211,15 +212,15 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                     h3 {
                                         class: "text-sm font-semibold text-[var(--text-heading)] m-0 inline-flex items-center gap-1.5",
                                         Icon { width: 14, height: 14, icon: LdPalette, class: "text-[var(--accent)]" }
-                                        "Primary Accent Color"
+                                        "{t.settings.primary_accent_title}"
                                     }
-                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Override the primary UI highlight and link color." }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.primary_accent_desc}" }
                                 }
                                 if has_custom_accent {
                                     button {
                                         class: "inline-flex items-center gap-1 text-xs text-[var(--accent)] hover:underline cursor-pointer bg-transparent border-0 p-0",
                                         onclick: move |_| store.write().set_primary_color(None),
-                                        "Reset to Theme Default"
+                                        "{t.settings.reset_theme_default}"
                                     }
                                 }
                             }
@@ -249,6 +250,7 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                     input {
                                         class: "opacity-0 absolute inset-0 w-full h-full cursor-pointer",
                                         r#type: "color",
+                                        title: "{t.settings.pick_custom_color_title}",
                                         value: "{active_accent}",
                                         oninput: move |evt| store.write().set_primary_color(Some(evt.value())),
                                     }
@@ -278,8 +280,8 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                             div {
                                 class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
                                 div {
-                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "Document Reading Layout" }
-                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Centered optimal line-length column or expansive full-width." }
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.reading_layout_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.reading_layout_desc}" }
                                 }
                                 div {
                                     class: "inline-flex bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-1",
@@ -290,7 +292,7 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                                 store.write().toggle_full_width();
                                             }
                                         },
-                                        "Reading Column"
+                                        "{t.settings.reading_column}"
                                     }
                                     button {
                                         class: if store_read.is_full_width { "h-7 px-3 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-3 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
@@ -299,7 +301,7 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                                 store.write().toggle_full_width();
                                             }
                                         },
-                                        "Full Width"
+                                        "{t.settings.full_width}"
                                     }
                                 }
                             }
@@ -308,26 +310,26 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                             div {
                                 class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
                                 div {
-                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "Default Viewer Zoom" }
-                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Scale typography and document images." }
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.zoom_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.zoom_desc}" }
                                 }
                                 div {
                                     class: "inline-flex items-center bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg h-7 px-1",
                                     button {
                                         class: "w-6 h-full bg-transparent border-0 text-[var(--text-muted)] hover:text-[var(--text-heading)] cursor-pointer text-sm font-bold",
-                                        title: "Zoom Out",
+                                        title: "{t.toolbar.zoom_out}",
                                         onclick: move |_| store.write().zoom_out(),
                                         "-"
                                     }
                                     span {
                                         class: "px-2.5 text-xs font-mono font-semibold text-[var(--text-heading)] cursor-pointer hover:text-[var(--accent)]",
-                                        title: "Reset Zoom (100%)",
+                                        title: "{t.toolbar.reset_zoom}",
                                         onclick: move |_| store.write().reset_zoom(),
                                         "{store_read.zoom_level}%"
                                     }
                                     button {
                                         class: "w-6 h-full bg-transparent border-0 text-[var(--text-muted)] hover:text-[var(--text-heading)] cursor-pointer text-sm font-bold",
-                                        title: "Zoom In",
+                                        title: "{t.toolbar.zoom_in}",
                                         onclick: move |_| store.write().zoom_in(),
                                         "+"
                                     }
@@ -338,8 +340,8 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                             div {
                                 class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
                                 div {
-                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "Base Document Font Size" }
-                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Typography size for paragraphs and body content." }
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.font_size_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.font_size_desc}" }
                                 }
                                 div {
                                     class: "inline-flex bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-1",
@@ -357,8 +359,8 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                             div {
                                 class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
                                 div {
-                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "Live Auto-Reload" }
-                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Automatically reload and re-render document when modified on disk." }
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.auto_reload_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.auto_reload_desc}" }
                                 }
                                 button {
                                     class: if store_read.settings.auto_reload { "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[var(--accent)] transition-colors duration-200 ease-in-out focus:outline-none" } else { "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[var(--bg-subtle)] border-[var(--border-color)] transition-colors duration-200 ease-in-out focus:outline-none" },
@@ -376,8 +378,8 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                             div {
                                 class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
                                 div {
-                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "Sticky Markdown Headings" }
-                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Keep section headings (H1-H6) pinned to the top while scrolling." }
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.sticky_headers_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.sticky_headers_desc}" }
                                 }
                                 button {
                                     class: if store_read.settings.sticky_headers { "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[var(--accent)] transition-colors duration-200 ease-in-out focus:outline-none" } else { "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[var(--bg-subtle)] border-[var(--border-color)] transition-colors duration-200 ease-in-out focus:outline-none" },
@@ -398,24 +400,46 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                         div {
                             class: "settings-section flex flex-col gap-5",
 
+                            // Language Selection
+                            div {
+                                class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                                div {
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.language_section_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.language_section_desc}" }
+                                }
+                                div {
+                                    class: "inline-flex bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-1",
+                                    button {
+                                        class: if store_read.language == Language::En { "h-7 px-3 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-3 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
+                                        onclick: move |_| store.write().set_language(Language::En),
+                                        "{t.settings.language_en}"
+                                    }
+                                    button {
+                                        class: if store_read.language == Language::De { "h-7 px-3 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-3 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
+                                        onclick: move |_| store.write().set_language(Language::De),
+                                        "{t.settings.language_de}"
+                                    }
+                                }
+                            }
+
                             // Default Sidebar Tab
                             div {
                                 class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
                                 div {
-                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "Default Sidebar Tab" }
-                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Initial mode when opening the sidebar." }
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.sidebar_tab_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.sidebar_tab_desc}" }
                                 }
                                 div {
                                     class: "inline-flex bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-1",
                                     button {
                                         class: if store_read.sidebar_tab == SidebarTab::Toc { "h-7 px-3 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-3 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
                                         onclick: move |_| store.write().set_sidebar_tab(SidebarTab::Toc),
-                                        "Outline (TOC)"
+                                        "{t.settings.sidebar_tab_toc}"
                                     }
                                     button {
                                         class: if store_read.sidebar_tab == SidebarTab::Files { "h-7 px-3 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-3 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
                                         onclick: move |_| store.write().set_sidebar_tab(SidebarTab::Files),
-                                        "File Explorer"
+                                        "{t.settings.sidebar_tab_files}"
                                     }
                                 }
                             }
@@ -424,8 +448,8 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                             div {
                                 class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
                                 div {
-                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "Sidebar Visibility" }
-                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Show sidebar outline/explorer on launch." }
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.sidebar_visibility_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.sidebar_visibility_desc}" }
                                 }
                                 button {
                                     class: if store_read.show_sidebar { "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[var(--accent)] transition-colors duration-200 ease-in-out focus:outline-none" } else { "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[var(--bg-subtle)] border-[var(--border-color)] transition-colors duration-200 ease-in-out focus:outline-none" },
@@ -441,10 +465,10 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                 class: "p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl flex flex-col gap-2",
                                 div {
                                     class: "flex items-center justify-between",
-                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "Recent Files & Workspaces" }
-                                    span { class: "text-[11px] font-mono text-[var(--text-muted)]", "{store_read.settings.recent_files.len()} files / {store_read.settings.recent_folders.len()} folders" }
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.recent_history_title}" }
+                                    span { class: "text-[11px] font-mono text-[var(--text-muted)]", "{store_read.settings.recent_files.len()} {t.settings.files_label} / {store_read.settings.recent_folders.len()} {t.settings.folders_label}" }
                                 }
-                                p { class: "text-xs text-[var(--text-muted)] m-0", "Quickly reopen recent markdown documents and project trees from memory." }
+                                p { class: "text-xs text-[var(--text-muted)] m-0", "{t.settings.recent_history_desc}" }
                             }
 
                             // OS Shell & Explorer File Associations
@@ -453,8 +477,8 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                 div {
                                     class: "flex items-center justify-between",
                                     div {
-                                        h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "Explorer & Shell Integration" }
-                                        p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Suggest Fast-MD in File Explorer 'Open with' and allow setting as default for .md, .markdown, .mdx files." }
+                                        h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.explorer_integration_title}" }
+                                        p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.explorer_integration_desc}" }
                                     }
                                 }
                                 div {
@@ -470,13 +494,13 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                         } else {
                                             Icon { width: 13, height: 13, icon: LdSparkles, class: "text-[var(--accent)]" }
                                         }
-                                        span { if assoc_registered() { "Registered in Explorer" } else { "Register in Explorer" } }
+                                        span { if assoc_registered() { "{t.settings.registered_explorer}" } else { "{t.settings.register_explorer}" } }
                                     }
                                     button {
                                         class: "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-color)] text-xs text-[var(--text-heading)] font-medium hover:bg-[var(--bg-hover)] cursor-pointer transition-colors",
                                         onclick: move |_| open_default_apps_settings(),
                                         Icon { width: 13, height: 13, icon: LdExternalLink }
-                                        span { "Open Default Apps Settings" }
+                                        span { "{t.settings.open_default_apps}" }
                                     }
                                 }
                             }
@@ -490,8 +514,8 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
 
                             div {
                                 class: "section-header",
-                                h3 { class: "text-sm font-semibold text-[var(--text-heading)] m-0", "Configuration File Location" }
-                                p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Preferences are stored in a human-readable JSON format. You can edit this file in your preferred editor." }
+                                h3 { class: "text-sm font-semibold text-[var(--text-heading)] m-0", "{t.settings.config_location_title}" }
+                                p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.config_location_desc}" }
                             }
 
                             // File Path Pill Box
@@ -530,19 +554,19 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                                 icon: LdCopy,
                                             }
                                         }
-                                        span { if copy_feedback() { "Copied Path" } else { "Copy Path" } }
+                                        span { if copy_feedback() { "{t.settings.copied_path}" } else { "{t.settings.copy_path}" } }
                                     }
                                     button {
                                         class: "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-color)] text-xs text-[var(--text-heading)] font-medium hover:bg-[var(--bg-hover)] cursor-pointer transition-colors",
                                         onclick: move |_| open_settings_in_editor(),
                                         Icon { width: 13, height: 13, icon: LdExternalLink }
-                                        span { "Open in Editor" }
+                                        span { "{t.settings.open_in_editor}" }
                                     }
                                     button {
                                         class: "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-color)] text-xs text-[var(--text-heading)] font-medium hover:bg-[var(--bg-hover)] cursor-pointer transition-colors",
                                         onclick: move |_| reveal_settings_folder(),
                                         Icon { width: 13, height: 13, icon: LdFolderOpen }
-                                        span { "Show in Folder" }
+                                        span { "{t.settings.show_in_folder}" }
                                     }
                                 }
                             }
@@ -553,14 +577,14 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                             div {
                                 class: "p-3.5 bg-red-950/20 border border-red-900/40 rounded-xl flex items-center justify-between",
                                 div {
-                                    h4 { class: "text-xs font-semibold text-red-400 m-0", "Reset All Preferences" }
-                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "Restore factory default theme, zoom level, and settings." }
+                                    h4 { class: "text-xs font-semibold text-red-400 m-0", "{t.settings.reset_all_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.reset_all_desc}" }
                                 }
                                 button {
                                     class: "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium border-0 cursor-pointer transition-colors shadow-sm",
                                     onclick: move |_| store.write().reset_settings_to_default(),
                                     Icon { width: 13, height: 13, icon: LdRotateCcw }
-                                    span { "Reset Defaults" }
+                                    span { "{t.settings.reset_defaults}" }
                                 }
                             }
                         }
@@ -574,7 +598,7 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                     button {
                         class: "h-8 px-5 rounded-lg bg-[var(--accent)] hover:opacity-90 text-white text-xs font-semibold cursor-pointer border-0 transition-opacity shadow-md",
                         onclick: move |_| store.write().set_settings_modal(false),
-                        "Done"
+                        "{t.settings.done_button}"
                     }
                 }
             }

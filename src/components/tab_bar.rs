@@ -14,6 +14,7 @@ pub struct TabBarProps {
 pub fn TabBar(props: TabBarProps) -> Element {
     let mut store = props.store;
     let store_read = store();
+    let t = store_read.language.strings();
     let total_tabs = store_read.tabs.len();
 
     rsx! {
@@ -27,6 +28,7 @@ pub fn TabBar(props: TabBarProps) -> Element {
                         tab: tab.clone(),
                         is_active: tab.id == store_read.active_tab_id,
                         can_close: total_tabs > 1,
+                        close_tooltip: t.tab_bar.close_tab,
                         on_select: move |id| {
                             store.write().select_tab(id);
                         },
@@ -38,7 +40,7 @@ pub fn TabBar(props: TabBarProps) -> Element {
             }
             button {
                 class: "tab-new-button w-6.5 h-6.5 bg-transparent border border-dashed border-[var(--border-color)] rounded-md text-[var(--text-muted)] flex items-center justify-center cursor-pointer hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] hover:border-solid transition-all duration-150",
-                title: "Open New File or Tab",
+                title: "{t.tab_bar.new_file_or_tab}",
                 onclick: move |_| {
                     spawn(async move {
                         if let Some(path) = pick_file_async().await {
@@ -59,6 +61,7 @@ struct TabItemElementProps {
     tab: TabItem,
     is_active: bool,
     can_close: bool,
+    close_tooltip: &'static str,
     on_select: EventHandler<usize>,
     on_close: EventHandler<usize>,
 }
@@ -87,7 +90,7 @@ fn TabItemElement(props: TabItemElementProps) -> Element {
             if props.can_close {
                 button {
                     class: "tab-close-button bg-transparent border-0 text-[var(--text-muted)] rounded w-4 h-4 flex items-center justify-center cursor-pointer hover:bg-white/10 hover:text-[var(--text-heading)] transition-colors",
-                    title: "Close Tab",
+                    title: "{props.close_tooltip}",
                     onclick: move |evt| {
                         evt.stop_propagation();
                         props.on_close.call(tab_id);
