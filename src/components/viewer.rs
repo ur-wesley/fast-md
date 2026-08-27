@@ -1,5 +1,5 @@
 use crate::components::frontmatter_card::FrontmatterCard;
-use crate::types::ParsedDocument;
+use crate::types::{Language, ParsedDocument};
 use dioxus::prelude::*;
 
 #[derive(Props, Clone, PartialEq, Eq)]
@@ -8,6 +8,7 @@ pub struct ViewerProps {
     pub is_full_width: bool,
     pub zoom_level: u32,
     pub sticky_headers: bool,
+    pub language: Language,
 }
 
 #[component]
@@ -27,20 +28,38 @@ pub fn Viewer(props: ViewerProps) -> Element {
     };
 
     rsx! {
-        main {
-            class: "{viewer_class}",
-            id: "viewer-scroll-area",
-            style: "{zoom_style}",
+        div {
+            class: "viewer-wrapper flex-1 h-full flex flex-col relative overflow-hidden",
+            // Sticky top light animated reading progress bar spanning full width of content window
             div {
-                class: "{container_class}",
-                if let Some(ref meta) = doc.metadata {
-                    FrontmatterCard {
-                        metadata: meta.clone(),
+                class: "viewer-progress-container w-full h-[3px] bg-[var(--bg-subtle)] overflow-hidden shrink-0 z-40 pointer-events-none relative",
+                div {
+                    id: "viewer-scroll-progress-bar",
+                    class: "viewer-progress-bar h-full w-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] transition-all duration-75 relative",
+                    div {
+                        class: "progress-head-pip absolute top-0 right-0 h-full w-4 bg-white/60 blur-[1px] shadow-[0_0_8px_var(--accent)]",
                     }
                 }
-                article {
-                    class: "markdown-body leading-relaxed",
-                    dangerous_inner_html: "{doc.html_content}",
+            }
+            main {
+                class: "{viewer_class}",
+                id: "viewer-scroll-area",
+                style: "{zoom_style}",
+                onscroll: move |_| {
+                    dioxus::prelude::document::eval("window.onViewerScroll && window.onViewerScroll();");
+                },
+                div {
+                    class: "{container_class}",
+                    if let Some(ref meta) = doc.metadata {
+                        FrontmatterCard {
+                            metadata: meta.clone(),
+                            language: props.language,
+                        }
+                    }
+                    article {
+                        class: "markdown-body leading-relaxed",
+                        dangerous_inner_html: "{doc.html_content}",
+                    }
                 }
             }
         }

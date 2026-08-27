@@ -1090,21 +1090,59 @@ html, body {
     padding: 8px 4px;
 }
 
-.toc-list {
+/* ================= Hierarchical TOC Tree Guides & States ================= */
+.toc-tree-list {
     list-style: none;
+    padding: 0;
+    margin: 0;
+    position: relative;
 }
 
-.toc-item {
+/* Subtle continuous vertical timeline track on the left of outline */
+.toc-tree-list::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 4px;
+    bottom: 4px;
+    width: 1px;
+    background-color: var(--border-subtle);
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.toc-tree-item {
+    position: relative;
     margin: 2px 0;
+    transition: transform var(--transition-fast);
+}
+
+/* Branch connector guide for subheadings (level >= 2) */
+.toc-tree-item.toc-level-2::before,
+.toc-tree-item.toc-level-3::before,
+.toc-tree-item.toc-level-4::before,
+.toc-tree-item.toc-level-5::before,
+.toc-tree-item.toc-level-6::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    width: 6px;
+    height: 1px;
+    background-color: var(--border-subtle);
+    opacity: 0.6;
 }
 
 .toc-link {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 7px;
     color: var(--text-muted);
     text-decoration: none;
-    font-size: 12px;
+    font-size: 11.5px;
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: 6px;
+    border: 1px solid transparent;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1112,13 +1150,145 @@ html, body {
 }
 
 .toc-link:hover {
-    color: var(--accent);
+    color: var(--text-heading);
     background-color: var(--bg-hover);
+    border-color: var(--border-subtle);
+}
+
+.toc-node-bullet {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    flex-shrink: 0;
+}
+
+.toc-node-bullet.root-node {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent);
+    background: transparent;
+}
+
+.toc-node-bullet.sub-node {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--text-muted);
+    opacity: 0.45;
+}
+
+/* Active Heading in Viewport */
+.toc-tree-item.active-toc-item > .toc-link {
+    color: var(--accent);
+    background-color: var(--bg-subtle);
+    border-color: var(--accent);
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15), 0 0 8px var(--accent-glow, rgba(88, 166, 255, 0.2));
+}
+
+.toc-tree-item.active-toc-item .toc-node-bullet {
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    opacity: 1 !important;
+    transform: scale(1.35);
+    box-shadow: 0 0 8px var(--accent);
+    animation: nodeActivePulse 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes nodeActivePulse {
+    0% { box-shadow: 0 0 4px var(--accent); }
+    100% { box-shadow: 0 0 12px var(--accent), 0 0 2px #fff; }
+}
+
+/* Passed / Already Read Headings */
+.toc-tree-item.passed-toc-item > .toc-link {
+    color: var(--text-main);
+    opacity: 0.9;
+}
+
+.toc-tree-item.passed-toc-item .toc-node-bullet {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    opacity: 0.7;
+}
+
+.toc-tree-item.passed-toc-item::before {
+    background-color: var(--accent);
+    opacity: 0.5;
+}
+
+/* Future / Upcoming Headings */
+.toc-tree-item.future-toc-item > .toc-link {
+    color: var(--text-muted);
+    opacity: 0.75;
+}
+
+.toc-tree-item.future-toc-item:hover > .toc-link {
+    opacity: 1;
+}
+
+.toc-level-tag {
+    font-size: 9px;
+    font-family: var(--font-mono);
+    opacity: 0.35;
+    background-color: var(--bg-subtle);
+    padding: 0 4px;
+    border-radius: 3px;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 .toc-level-1 { font-weight: 600; }
 .toc-level-2 { font-weight: 500; font-size: 11.5px; }
-.toc-level-3, .toc-level-4 { font-weight: 400; font-size: 11px; }
+.toc-level-3, .toc-level-4, .toc-level-5, .toc-level-6 { font-weight: 400; font-size: 11px; }
+
+/* ================= Light-Animated Reading Progress Bar ================= */
+.viewer-progress-container {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 3px;
+    background-color: var(--bg-subtle);
+    overflow: hidden;
+    z-index: 40;
+    pointer-events: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.viewer-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 50%, var(--accent) 100%);
+    background-size: 200% 100%;
+    animation: progressShimmer 2.5s linear infinite;
+    transition: width 0.08s ease-out;
+    position: relative;
+    box-shadow: 0 0 8px var(--accent-glow, rgba(88, 166, 255, 0.4));
+}
+
+.progress-head-pip {
+    position: absolute;
+    top: 0;
+    right: -2px;
+    height: 100%;
+    width: 14px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), #ffffff);
+    border-radius: 50%;
+    filter: blur(0.5px);
+    box-shadow: 0 0 10px 2px var(--accent);
+    animation: headPipGlow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes progressShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@keyframes headPipGlow {
+    0% { opacity: 0.6; transform: scaleX(0.8); }
+    100% { opacity: 1; transform: scaleX(1.3); }
+}
 
 .file-search-box {
     padding: 4px 8px 8px 8px;

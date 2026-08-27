@@ -1,5 +1,6 @@
 mod cli;
 mod components;
+mod i18n;
 mod services;
 mod state;
 mod types;
@@ -15,7 +16,7 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::time::Duration;
-use types::AppTheme;
+use types::{AppTheme, Language};
 
 static CLI_ARGS: OnceLock<CliArgs> = OnceLock::new();
 
@@ -23,24 +24,28 @@ const APP_STYLES: &str = include_str!("assets/style.css");
 
 const HELPER_JS: &str = r"
 window.copyCodeSnippet = function(btn) {
-    const code = btn.getAttribute('data-code');
-    if (code) {
-        navigator.clipboard.writeText(code).then(() => {
-            const span = btn.querySelector('span');
-            if (span) {
-                const orig = span.innerText;
-                span.innerText = 'Copied!';
-                setTimeout(() => { span.innerText = orig; }, 1800);
-            }
-        }).catch(err => console.error('Copy failed:', err));
-    }
+    try {
+        const code = btn.getAttribute('data-code');
+        if (code) {
+            navigator.clipboard.writeText(code).then(() => {
+                const span = btn.querySelector('span');
+                if (span) {
+                    const orig = span.innerText;
+                    span.innerText = 'Copied!';
+                    setTimeout(() => { span.innerText = orig; }, 1800);
+                }
+            }).catch(err => console.error('Copy failed:', err));
+        }
+    } catch(e) { console.error(e); }
 };
 
 window.scrollToSection = function(id) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    try {
+        const el = document.getElementById(id);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    } catch(e) { console.error(e); }
 };
 
 // --- In-Document Search & Highlighting Engine ---
@@ -51,110 +56,116 @@ window._searchState = {
 };
 
 window.clearSearchHighlights = function() {
-    const marks = document.querySelectorAll('mark.fastmd-search-match');
-    marks.forEach(mark => {
-        const parent = mark.parentNode;
-        if (parent) {
-            parent.replaceChild(document.createTextNode(mark.textContent), mark);
-            parent.normalize();
-        }
-    });
-    window._searchState.matches = [];
-    window._searchState.currentIndex = -1;
-    window._searchState.query = '';
-    window.updateSearchCountUI(0, 0);
+    try {
+        const marks = document.querySelectorAll('mark.fastmd-search-match');
+        marks.forEach(mark => {
+            const parent = mark.parentNode;
+            if (parent) {
+                parent.replaceChild(document.createTextNode(mark.textContent), mark);
+                parent.normalize();
+            }
+        });
+        window._searchState.matches = [];
+        window._searchState.currentIndex = -1;
+        window._searchState.query = '';
+        window.updateSearchCountUI(0, 0);
+    } catch(e) { console.error(e); }
 };
 
 window.highlightSearchMatches = function(query) {
-    window.clearSearchHighlights();
-    if (!query || query.trim() === '') {
-        return;
-    }
+    try {
+        window.clearSearchHighlights();
+        if (!query || query.trim() === '') {
+            return;
+        }
 
-    const root = document.querySelector('.app-main-viewer') || document.querySelector('.markdown-body');
-    if (!root) return;
+        const root = document.querySelector('.app-main-viewer') || document.querySelector('.markdown-body');
+        if (!root) return;
 
-    window._searchState.query = query;
-    const lowerQuery = query.toLowerCase();
+        window._searchState.query = query;
+        const lowerQuery = query.toLowerCase();
 
-    function walkTextNodes(node, callback) {
-        if (node.nodeType === Node.TEXT_NODE) {
-            callback(node);
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-            if (['SCRIPT', 'STYLE', 'BUTTON', 'INPUT', 'HEADER', 'NAV'].includes(node.tagName) || node.classList.contains('app-titlebar') || node.classList.contains('app-toolbar')) {
-                return;
+        function walkTextNodes(node, callback) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                callback(node);
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                if (['SCRIPT', 'STYLE', 'BUTTON', 'INPUT', 'HEADER', 'NAV'].includes(node.tagName) || node.classList.contains('app-titlebar') || node.classList.contains('app-toolbar')) {
+                    return;
+                }
+                Array.from(node.childNodes).forEach(child => walkTextNodes(child, callback));
             }
-            Array.from(node.childNodes).forEach(child => walkTextNodes(child, callback));
         }
-    }
 
-    const textNodes = [];
-    walkTextNodes(root, n => textNodes.push(n));
+        const textNodes = [];
+        walkTextNodes(root, n => textNodes.push(n));
 
-    const matches = [];
-    textNodes.forEach(textNode => {
-        const text = textNode.textContent;
-        const lowerText = text.toLowerCase();
-        let startIndex = 0;
-        let index = lowerText.indexOf(lowerQuery, startIndex);
+        const matches = [];
+        textNodes.forEach(textNode => {
+            const text = textNode.textContent;
+            const lowerText = text.toLowerCase();
+            let startIndex = 0;
+            let index = lowerText.indexOf(lowerQuery, startIndex);
 
-        if (index === -1) return;
+            if (index === -1) return;
 
-        const fragment = document.createDocumentFragment();
-        let lastIdx = 0;
+            const fragment = document.createDocumentFragment();
+            let lastIdx = 0;
 
-        while (index !== -1) {
-            if (index > lastIdx) {
-                fragment.appendChild(document.createTextNode(text.substring(lastIdx, index)));
+            while (index !== -1) {
+                if (index > lastIdx) {
+                    fragment.appendChild(document.createTextNode(text.substring(lastIdx, index)));
+                }
+
+                const mark = document.createElement('mark');
+                mark.className = 'fastmd-search-match';
+                mark.textContent = text.substring(index, index + query.length);
+                fragment.appendChild(mark);
+                matches.push(mark);
+
+                lastIdx = index + query.length;
+                startIndex = lastIdx;
+                index = lowerText.indexOf(lowerQuery, startIndex);
             }
 
-            const mark = document.createElement('mark');
-            mark.className = 'fastmd-search-match';
-            mark.textContent = text.substring(index, index + query.length);
-            fragment.appendChild(mark);
-            matches.push(mark);
+            if (lastIdx < text.length) {
+                fragment.appendChild(document.createTextNode(text.substring(lastIdx)));
+            }
 
-            lastIdx = index + query.length;
-            startIndex = lastIdx;
-            index = lowerText.indexOf(lowerQuery, startIndex);
+            if (textNode.parentNode) {
+                textNode.parentNode.replaceChild(fragment, textNode);
+            }
+        });
+
+        window._searchState.matches = matches;
+        if (matches.length > 0) {
+            window._searchState.currentIndex = 0;
+            window.activateMatch(0);
+        } else {
+            window.updateSearchCountUI(0, 0);
         }
-
-        if (lastIdx < text.length) {
-            fragment.appendChild(document.createTextNode(text.substring(lastIdx)));
-        }
-
-        if (textNode.parentNode) {
-            textNode.parentNode.replaceChild(fragment, textNode);
-        }
-    });
-
-    window._searchState.matches = matches;
-    if (matches.length > 0) {
-        window._searchState.currentIndex = 0;
-        window.activateMatch(0);
-    } else {
-        window.updateSearchCountUI(0, 0);
-    }
+    } catch(e) { console.error(e); }
 };
 
 window.activateMatch = function(index) {
-    const s = window._searchState;
-    if (!s.matches || s.matches.length === 0) return;
+    try {
+        const s = window._searchState;
+        if (!s.matches || s.matches.length === 0) return;
 
-    if (index < 0) index = s.matches.length - 1;
-    if (index >= s.matches.length) index = 0;
-    s.currentIndex = index;
+        if (index < 0) index = s.matches.length - 1;
+        if (index >= s.matches.length) index = 0;
+        s.currentIndex = index;
 
-    s.matches.forEach((m, idx) => {
-        if (idx === index) {
-            m.classList.add('active-match');
-            m.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-            m.classList.remove('active-match');
-        }
-    });
+        s.matches.forEach((m, idx) => {
+            if (idx === index) {
+                m.classList.add('active-match');
+                m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                m.classList.remove('active-match');
+            }
+        });
 
-    window.updateSearchCountUI(s.currentIndex + 1, s.matches.length);
+        window.updateSearchCountUI(s.currentIndex + 1, s.matches.length);
+    } catch(e) { console.error(e); }
 };
 
 window.searchNextMatch = function() {
@@ -172,14 +183,16 @@ window.searchPrevMatch = function() {
 };
 
 window.updateSearchCountUI = function(current, total) {
-    const el = document.getElementById('search-match-count');
-    if (el) {
-        if (total === 0) {
-            el.innerText = window._searchState && window._searchState.query ? '0 results' : '';
-        } else {
-            el.innerText = `${current} / ${total}`;
+    try {
+        const el = document.getElementById('search-match-count');
+        if (el) {
+            if (total === 0) {
+                el.innerText = window._searchState && window._searchState.query ? '0 results' : '';
+            } else {
+                el.innerText = `${current} / ${total}`;
+            }
         }
-    }
+    } catch(e) { console.error(e); }
 };
 
 // Global Shortcut Interceptor (captures Ctrl+F / Cmd+F anywhere in the window)
@@ -197,7 +210,114 @@ function handleSearchShortcut(e) {
     }
 }
 window.addEventListener('keydown', handleSearchShortcut, true);
-document.addEventListener('keydown', handleSearchShortcut, true);
+
+// --- Reading & Scroll Progress Engine ---
+(function() {
+    let _scrollTicking = false;
+    let _lastActiveHeadingId = '';
+    let _lastProgress = -1;
+
+    function updateScrollProgress() {
+        _scrollTicking = false;
+        try {
+            const scrollArea = document.getElementById('viewer-scroll-area');
+            if (!scrollArea) return;
+
+            const scrollTop = scrollArea.scrollTop;
+            const scrollHeight = scrollArea.scrollHeight;
+            const clientHeight = scrollArea.clientHeight;
+            const maxScroll = scrollHeight - clientHeight;
+
+            let progress = 0;
+            if (maxScroll > 0) {
+                progress = Math.min(100, Math.max(0, (scrollTop / maxScroll) * 100));
+            }
+
+            const viewerBar = document.getElementById('viewer-scroll-progress-bar');
+            if (viewerBar) {
+                viewerBar.style.width = progress + '%';
+            }
+
+            // Find active heading based on viewport offset
+            const headings = scrollArea.querySelectorAll('.doc-heading, h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]');
+            if (!headings || headings.length === 0) return;
+
+            let activeHeadingId = headings[0].id;
+            const offsetThreshold = 110;
+
+            for (let i = 0; i < headings.length; i++) {
+                const h = headings[i];
+                const rect = h.getBoundingClientRect();
+                const containerRect = scrollArea.getBoundingClientRect();
+                const relativeTop = rect.top - containerRect.top;
+
+                if (relativeTop <= offsetThreshold) {
+                    activeHeadingId = h.id;
+                } else {
+                    break;
+                }
+            }
+
+            if (scrollTop + clientHeight >= scrollHeight - 15) {
+                activeHeadingId = headings[headings.length - 1].id;
+            }
+
+            if (activeHeadingId !== _lastActiveHeadingId) {
+                _lastActiveHeadingId = activeHeadingId;
+
+                const tocItems = document.querySelectorAll('.sidebar-toc-container .toc-item');
+                let foundActive = false;
+                let activeElem = null;
+
+                tocItems.forEach((item) => {
+                    const hId = item.getAttribute('data-heading-id');
+                    if (hId === activeHeadingId) {
+                        item.classList.add('active-toc-item');
+                        item.classList.remove('passed-toc-item', 'future-toc-item');
+                        foundActive = true;
+                        activeElem = item;
+                    } else if (!foundActive) {
+                        item.classList.add('passed-toc-item');
+                        item.classList.remove('active-toc-item', 'future-toc-item');
+                    } else {
+                        item.classList.add('future-toc-item');
+                        item.classList.remove('active-toc-item', 'passed-toc-item');
+                    }
+                });
+
+                if (activeElem && !window._userIsHoveringToc) {
+                    const tocContainer = document.querySelector('.sidebar-toc-container');
+                    if (tocContainer) {
+                        const itemTop = activeElem.offsetTop;
+                        const itemBottom = itemTop + activeElem.offsetHeight;
+                        const containerTop = tocContainer.scrollTop;
+                        const containerBottom = containerTop + tocContainer.clientHeight;
+
+                        if (itemTop < containerTop + 30 || itemBottom > containerBottom - 30) {
+                            activeElem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }
+                }
+            }
+        } catch(e) {
+            console.error('Progress update error:', e);
+        }
+    }
+
+    window.onViewerScroll = function() {
+        if (!_scrollTicking) {
+            window.requestAnimationFrame(updateScrollProgress);
+            _scrollTicking = true;
+        }
+    };
+
+    window.addEventListener('resize', () => {
+        if (!_scrollTicking) {
+            window.requestAnimationFrame(updateScrollProgress);
+            _scrollTicking = true;
+        }
+    });
+})();
 ";
 
 fn resolve_cli_path(raw_path: Option<&PathBuf>) -> Option<PathBuf> {
@@ -268,6 +388,7 @@ fn App() -> Element {
         path: None,
         zen: false,
         theme: None,
+        lang: None,
         register: false,
         unregister: false,
     });
@@ -285,12 +406,18 @@ fn App() -> Element {
         _ => None,
     });
 
+    let cli_lang = cli_args.lang.as_deref().and_then(|l| match l.to_lowercase().as_str() {
+        "de" | "german" | "deutsch" => Some(Language::De),
+        "en" | "english" => Some(Language::En),
+        _ => None,
+    });
+
     let resolved_path = resolve_cli_path(cli_args.path.as_ref());
     let initial_zen = cli_args.zen;
 
     // Central application state store
     let mut store = use_signal(move || {
-        AppStore::new_with_options(resolved_path.as_deref(), cli_theme, initial_zen)
+        AppStore::new_with_options(resolved_path.as_deref(), cli_theme, cli_lang, initial_zen)
     });
 
     // Dynamically apply OS native glass / acrylic / mica effect based on active theme
@@ -415,6 +542,7 @@ fn App() -> Element {
             // Floating Zen Exit Button (visible only in Zen mode)
             if is_zen {
                 ZenExitButton {
+                    language: store_read.language,
                     on_exit: move |()| {
                         store.write().set_zen(false);
                     },
@@ -462,6 +590,7 @@ fn App() -> Element {
                     is_full_width: is_full_width,
                     zoom_level: zoom_level,
                     sticky_headers: store_read.sticky_headers,
+                    language: store_read.language,
                 }
             }
 
@@ -472,6 +601,7 @@ fn App() -> Element {
                     file_path: active_tab.path,
                     document: active_tab.parsed,
                     zoom_level: zoom_level,
+                    language: store_read.language,
                 }
             }
 

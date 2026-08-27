@@ -19,6 +19,7 @@ pub fn Sidebar(props: SidebarProps) -> Element {
     let mut file_search_query = use_signal(String::new);
     let mut store = props.store;
     let store_read = store();
+    let t = store_read.language.strings();
 
     let toc = store_read.active_tab().map_or_else(Vec::new, |t| t.parsed.toc.clone());
     let file_tree = store_read.file_tree.clone();
@@ -34,13 +35,13 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                     class: if current_tab == SidebarTab::Toc { "mode-btn active flex-1 h-6.5 bg-[var(--bg-subtle)] text-[var(--accent)] border-0 rounded text-xs font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center gap-1.5" } else { "mode-btn flex-1 h-6.5 bg-transparent border-0 rounded text-[var(--text-muted)] text-xs font-semibold cursor-pointer hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-all duration-150 inline-flex items-center justify-center gap-1.5" },
                     onclick: move |_| store.write().set_sidebar_tab(SidebarTab::Toc),
                     Icon { width: 13, height: 13, icon: LdAlignLeft }
-                    span { "Outline ({toc.len()})" }
+                    span { "{t.sidebar.outline} ({toc.len()})" }
                 }
                 button {
                     class: if current_tab == SidebarTab::Files { "mode-btn active flex-1 h-6.5 bg-[var(--bg-subtle)] text-[var(--accent)] border-0 rounded text-xs font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center gap-1.5" } else { "mode-btn flex-1 h-6.5 bg-transparent border-0 rounded text-[var(--text-muted)] text-xs font-semibold cursor-pointer hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-all duration-150 inline-flex items-center justify-center gap-1.5" },
                     onclick: move |_| store.write().set_sidebar_tab(SidebarTab::Files),
                     Icon { width: 13, height: 13, icon: LdFolders }
-                    span { "Files" }
+                    span { "{t.sidebar.files}" }
                 }
             }
 
@@ -52,11 +53,11 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                         div {
                             class: "sidebar-empty-state py-8 px-4 text-[var(--text-muted)] text-xs text-center leading-relaxed flex flex-col items-center justify-center",
                             Icon { width: 22, height: 22, icon: LdBookOpen, class: "opacity-40 mb-2" }
-                            span { "No headings found in document." }
+                            span { "{t.sidebar.no_headings}" }
                         }
                     } else {
                         ul {
-                            class: "toc-list list-none m-0 p-0",
+                            class: "toc-tree-list list-none m-0 p-0 relative",
                             for item in &toc {
                                 TocItemLink {
                                     key: "{item.id}",
@@ -81,7 +82,7 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                             input {
                                 class: "file-search-input flex-1 bg-transparent border-0 text-[var(--text-main)] text-xs outline-none min-w-0 placeholder:text-[var(--text-muted)]",
                                 r#type: "text",
-                                placeholder: "Filter files...",
+                                placeholder: "{t.sidebar.filter_files}",
                                 value: "{file_search_query}",
                                 oninput: move |evt| file_search_query.set(evt.value()),
                             }
@@ -91,8 +92,8 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                         div {
                             class: "sidebar-empty-state py-8 px-4 text-[var(--text-muted)] text-xs text-center leading-relaxed flex flex-col items-center justify-center",
                             Icon { width: 22, height: 22, icon: LdFolderOpen, class: "opacity-40 mb-2" }
-                            span { "No folder opened." }
-                            span { class: "opacity-75 mt-1", "Click 'Folder' in toolbar to open a documentation directory." }
+                            span { "{t.sidebar.no_folder_opened}" }
+                            span { class: "opacity-75 mt-1", "{t.sidebar.open_folder_hint}" }
                         }
                     } else {
                         div {
@@ -124,21 +125,41 @@ struct TocItemLinkProps {
 fn TocItemLink(props: TocItemLinkProps) -> Element {
     let item = &props.item;
     let heading_id = item.id.clone();
-    let indent_level = (item.level.saturating_sub(1)).min(4);
-    let padding = format!("{}rem", f32::from(indent_level) * 0.75);
+    let indent_level = (item.level.saturating_sub(1)).min(5);
+    let indent_px = indent_level * 12;
+    let style = format!("margin-left: {indent_px}px;");
+    let is_root = item.level == 1;
 
     rsx! {
         li {
-            class: "toc-item toc-level-{item.level} my-0.5",
-            style: "padding-left: {padding};",
+            class: format!("toc-item toc-tree-item toc-level-{} my-0.5 relative group", item.level),
+            style: "{style}",
+            "data-heading-id": "{heading_id}",
             a {
-                class: "toc-link block text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)] text-xs py-1 px-2 rounded truncate transition-all duration-150 no-underline",
+                class: "toc-link flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] text-xs py-1 px-2 rounded-md transition-all duration-150 no-underline cursor-pointer select-none",
                 href: "#{heading_id}",
                 onclick: move |evt| {
                     evt.prevent_default();
                     props.on_select.call(heading_id.clone());
                 },
-                "{item.title}"
+                // Hierarchical node indicator bullet
+                span {
+                    class: if is_root {
+                        "toc-node-bullet root-node w-2 h-2 rounded-full border border-[var(--accent)] bg-transparent shrink-0 transition-all duration-200"
+                    } else {
+                        "toc-node-bullet sub-node w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] opacity-50 shrink-0 transition-all duration-200"
+                    }
+                }
+                span {
+                    class: "toc-title truncate flex-1",
+                    "{item.title}"
+                }
+                if item.level > 2 {
+                    span {
+                        class: "toc-level-tag text-[9px] font-mono opacity-40 uppercase shrink-0",
+                        "H{item.level}"
+                    }
+                }
             }
         }
     }
