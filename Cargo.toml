@@ -1,0 +1,56 @@
+[package]
+name = "fast-md"
+version = "0.0.0"
+edition = "2021"
+authors = ["WorkspaceLauncher Team"]
+description = "Lightning-fast native desktop Markdown & MDX viewer built with Dioxus"
+license = "MIT"
+readme = "README.md"
+
+[dependencies]
+dioxus = { version = "0.6", features = ["desktop"] }
+dioxus-free-icons = { version = "0.9", features = ["lucide"] }
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html", "simd"] }
+syntect = { version = "5.3", default-features = false, features = ["default-syntaxes", "default-themes", "html", "regex-fancy"] }
+notify = "6.1"
+rfd = "0.15"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+clap = { version = "4.5", features = ["derive"] }
+eyre = "0.6"
+itertools = "0.14"
+rayon = "1.10"
+walkdir = "2.5"
+tokio = { version = "1", features = ["time", "sync", "rt"] }
+window-vibrancy = "0.5"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Graphics_Dwm", "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_LibraryLoader"] }
+raw-window-handle = "0.6"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "warn"
+unimplemented = "warn"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"

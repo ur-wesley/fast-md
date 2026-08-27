@@ -1,0 +1,6 @@
+[application]
+name = "fast-md"
+default_platform = "desktop"
+asset_dir = "src/assets"
+
+[desktop]
