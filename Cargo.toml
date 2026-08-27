@@ -1,6 +1,6 @@
 [package]
 name = "fast-md"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["WorkspaceLauncher Team"]
 description = "Lightning-fast native desktop Markdown & MDX viewer built with Dioxus"
