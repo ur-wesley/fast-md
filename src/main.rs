@@ -16,7 +16,7 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::time::Duration;
-use types::{AppTheme, Language};
+use types::{AppTheme, Language, UpdateStatus};
 
 static CLI_ARGS: OnceLock<CliArgs> = OnceLock::new();
 
@@ -465,6 +465,21 @@ fn App() -> Element {
                             }
                         }
                     }
+                }
+            }
+        }
+    });
+
+    // Background GitHub release auto-checker on application startup
+    let _update_checker_task = use_coroutine(move |_: UnboundedReceiver<()>| {
+        to_owned![store];
+        async move {
+            let should_check = store().settings.auto_check_updates;
+            if should_check {
+                tokio::time::sleep(Duration::from_secs(2)).await;
+                let res = tokio::task::spawn_blocking(services::updater::check_github_release).await;
+                if let Ok(Ok(Some(release))) = res {
+                    store.write().set_update_status(UpdateStatus::Available(release));
                 }
             }
         }

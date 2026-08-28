@@ -257,6 +257,10 @@ pub struct AppSettings {
     /// Optional custom user CSS injected into the viewer.
     #[serde(default)]
     pub custom_css: Option<String>,
+
+    /// Automatically check for application updates on startup.
+    #[serde(default = "default_true")]
+    pub auto_check_updates: bool,
 }
 
 impl Default for AppSettings {
@@ -276,6 +280,69 @@ impl Default for AppSettings {
             recent_files: Vec::new(),
             recent_folders: Vec::new(),
             custom_css: None,
+            auto_check_updates: default_true(),
+        }
+    }
+}
+
+/// Detailed metadata about an available GitHub release.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReleaseInfo {
+    pub version: String,
+    pub tag_name: String,
+    pub name: String,
+    pub release_notes: String,
+    pub asset_name: String,
+    pub download_url: String,
+    pub published_at: String,
+    pub html_url: String,
+}
+
+/// Reactive application update lifecycle status.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum UpdateStatus {
+    #[default]
+    Idle,
+    Checking,
+    UpToDate,
+    Available(ReleaseInfo),
+    Downloading {
+        version: String,
+        progress: u8,
+    },
+    Installing {
+        version: String,
+    },
+    ReadyToRestart {
+        version: String,
+    },
+    Error(String),
+}
+
+impl UpdateStatus {
+    #[must_use]
+    pub const fn is_checking(&self) -> bool {
+        matches!(self, Self::Checking)
+    }
+
+    #[must_use]
+    pub const fn is_downloading(&self) -> bool {
+        matches!(self, Self::Downloading { .. } | Self::Installing { .. })
+    }
+
+    #[must_use]
+    #[allow(dead_code)]
+    pub const fn is_ready_to_restart(&self) -> bool {
+        matches!(self, Self::ReadyToRestart { .. })
+    }
+
+    #[must_use]
+    #[allow(dead_code)]
+    pub const fn available_release(&self) -> Option<&ReleaseInfo> {
+        if let Self::Available(info) = self {
+            Some(info)
+        } else {
+            None
         }
     }
 }

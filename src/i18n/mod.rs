@@ -23,6 +23,7 @@ pub struct TitleBarTranslations {
     pub close: &'static str,
     pub workspace: &'static str,
     pub shortcut_ctrl_f: &'static str,
+    pub update_available_badge: &'static str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,6 +120,25 @@ pub struct SettingsTranslations {
     pub tab_reader: &'static str,
     pub tab_workspace: &'static str,
     pub tab_config_file: &'static str,
+    pub tab_updates: &'static str,
+
+    // Updates section
+    pub updates_title: &'static str,
+    pub updates_desc: &'static str,
+    pub current_version_label: &'static str,
+    pub check_for_updates_button: &'static str,
+    pub checking_for_updates: &'static str,
+    pub up_to_date_message: &'static str,
+    pub update_available_title: &'static str,
+    pub update_download_button: &'static str,
+    pub downloading_update: &'static str,
+    pub installing_update: &'static str,
+    pub update_ready_title: &'static str,
+    pub restart_and_update_button: &'static str,
+    pub update_error_title: &'static str,
+    pub auto_check_updates_title: &'static str,
+    pub auto_check_updates_desc: &'static str,
+    pub view_release_notes: &'static str,
 
     // Appearance tab
     pub theme_presets_title: &'static str,
@@ -241,5 +261,9 @@ mod tests {
         assert!(!de.settings.modal_title.is_empty());
         assert!(!en.settings.language_section_title.is_empty());
         assert!(!de.settings.language_section_title.is_empty());
+        assert!(!en.settings.tab_updates.is_empty());
+        assert!(!de.settings.tab_updates.is_empty());
+        assert!(!en.settings.check_for_updates_button.is_empty());
+        assert!(!de.settings.check_for_updates_button.is_empty());
     }
 }

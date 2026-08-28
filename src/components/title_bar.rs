@@ -10,7 +10,7 @@ pub struct TitleBarProps {
 #[component]
 pub fn TitleBar(props: TitleBarProps) -> Element {
     let mut search_query = use_signal(String::new);
-    let store = props.store;
+    let mut store = props.store;
     let store_read = store();
     let t = store_read.language.strings();
 
@@ -199,10 +199,58 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
                 }
             }
 
-            // Right Section: Window Controls (Minimize, Maximize, Close)
+            // Right Section: Window Controls (Minimize, Maximize, Close) + Update Indicator
             div {
                 class: "titlebar-window-controls flex items-center h-full",
                 onmousedown: move |evt| evt.stop_propagation(),
+
+                if let crate::types::UpdateStatus::Available(ref info) = store_read.update_status {
+                    button {
+                        class: "update-badge-btn inline-flex items-center gap-1.5 px-2.5 py-1 mr-2 rounded-full bg-[var(--accent)]/15 border border-[var(--accent)]/40 text-[var(--accent)] text-[11px] font-semibold hover:bg-[var(--accent)] hover:text-white transition-all cursor-pointer shadow-sm",
+                        title: "{t.title_bar.update_available_badge}: v{info.version}",
+                        onclick: move |_| {
+                            store.write().set_settings_modal(true);
+                        },
+                        svg {
+                            view_box: "0 0 24 24",
+                            width: "12",
+                            height: "12",
+                            path {
+                                d: "M12 3v13m0 0l-4-4m4 4l4-4M5 21h14",
+                                fill: "none",
+                                stroke: "currentColor",
+                                stroke_width: "2.2",
+                                stroke_linecap: "round",
+                                stroke_linejoin: "round",
+                            }
+                        }
+                        span { "v{info.version}" }
+                    }
+                }
+
+                if let crate::types::UpdateStatus::ReadyToRestart { ref version } = store_read.update_status {
+                    button {
+                        class: "update-badge-btn inline-flex items-center gap-1.5 px-2.5 py-1 mr-2 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 text-[11px] font-semibold hover:bg-emerald-500 hover:text-white transition-all cursor-pointer shadow-sm",
+                        title: "{t.settings.restart_and_update_button}",
+                        onclick: move |_| {
+                            let _ = crate::services::updater::restart_app();
+                        },
+                        svg {
+                            view_box: "0 0 24 24",
+                            width: "12",
+                            height: "12",
+                            path {
+                                d: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15",
+                                fill: "none",
+                                stroke: "currentColor",
+                                stroke_width: "2.2",
+                                stroke_linecap: "round",
+                                stroke_linejoin: "round",
+                            }
+                        }
+                        span { "Restart v{version}" }
+                    }
+                }
 
                 button {
                     class: "window-control-btn btn-minimize flex items-center justify-center w-11 h-[38px] bg-transparent border-0 text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] cursor-pointer transition-colors duration-150",

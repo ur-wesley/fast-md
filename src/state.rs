@@ -1,7 +1,9 @@
 use crate::services::fs::{read_document_file, scan_markdown_tree};
 use crate::services::markdown::parse_markdown_document;
 use crate::services::settings::{load_settings, save_settings};
-use crate::types::{AppSettings, AppTheme, FileTreeEntry, Language, SidebarTab, TabItem};
+use crate::types::{
+    AppSettings, AppTheme, FileTreeEntry, Language, SidebarTab, TabItem, UpdateStatus,
+};
 use std::path::{Path, PathBuf};
 
 pub const WELCOME_DOC: &str = r#"---
@@ -109,6 +111,7 @@ pub struct AppStore {
     pub file_tree: Vec<FileTreeEntry>,
     pub opened_folder: Option<PathBuf>,
     pub settings: AppSettings,
+    pub update_status: UpdateStatus,
 }
 
 impl Default for AppStore {
@@ -139,6 +142,7 @@ impl Default for AppStore {
             file_tree: Vec::new(),
             opened_folder: None,
             settings,
+            update_status: UpdateStatus::Idle,
         }
     }
 }
@@ -422,6 +426,17 @@ impl AppStore {
         self.persist_settings();
     }
 
+    /// Update the current reactive update status.
+    pub fn set_update_status(&mut self, status: UpdateStatus) {
+        self.update_status = status;
+    }
+
+    /// Toggle or set auto check for updates and persist.
+    pub fn set_auto_check_updates(&mut self, enabled: bool) {
+        self.settings.auto_check_updates = enabled;
+        self.persist_settings();
+    }
+
     /// Reset all settings to application defaults and persist.
     pub fn reset_settings_to_default(&mut self) {
         let defaults = AppSettings::default();
@@ -434,6 +449,7 @@ impl AppStore {
         self.sidebar_tab = defaults.sidebar_tab;
         self.sticky_headers = defaults.sticky_headers;
         self.settings = defaults;
+        self.update_status = UpdateStatus::Idle;
         self.persist_settings();
     }
 }

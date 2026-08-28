@@ -22,6 +22,7 @@ pub const EN: Translations = Translations {
         close: "Close",
         workspace: "Workspace",
         shortcut_ctrl_f: "Ctrl F",
+        update_available_badge: "Update Available",
     },
     toolbar: ToolbarTranslations {
         toggle_sidebar: "Toggle Outline / File Tree",
@@ -102,6 +103,25 @@ pub const EN: Translations = Translations {
         tab_reader: "Reader & Layout",
         tab_workspace: "Workspace & Sidebar",
         tab_config_file: "Settings File",
+        tab_updates: "Updates",
+
+        // Updates section
+        updates_title: "Application Updates & Version",
+        updates_desc: "Check for new releases, install updates automatically from GitHub, and manage update preferences.",
+        current_version_label: "Installed Version",
+        check_for_updates_button: "Check for Updates",
+        checking_for_updates: "Checking GitHub Releases...",
+        up_to_date_message: "You are on the latest version of Fast-MD.",
+        update_available_title: "New Version Available",
+        update_download_button: "Download & Install Update",
+        downloading_update: "Downloading Update...",
+        installing_update: "Installing Update...",
+        update_ready_title: "Update Ready to Apply",
+        restart_and_update_button: "Restart Fast-MD Now",
+        update_error_title: "Failed to check or install update",
+        auto_check_updates_title: "Auto-Check for Updates on Startup",
+        auto_check_updates_desc: "Automatically check for new releases in the background when Fast-MD starts.",
+        view_release_notes: "View on GitHub",
 
         // Appearance tab
         theme_presets_title: "Theme Presets",
