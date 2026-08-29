@@ -1,73 +1,3 @@
-use crate::types::DocumentFormat;
-
-/// Format document according to its format (Markdown, JSON, TOML, YAML, etc.).
-pub fn format_document(source: &str, format: DocumentFormat) -> Result<String, String> {
-    match format {
-        DocumentFormat::Markdown | DocumentFormat::Mdx => Ok(format_markdown(source)),
-        DocumentFormat::Json => format_json(source),
-        DocumentFormat::Toml => format_toml(source),
-        DocumentFormat::Yaml => format_yaml(source),
-        _ => Ok(source.to_string()),
-    }
-}
-
-/// Format JSON document with 2-space pretty printing.
-pub fn format_json(source: &str) -> Result<String, String> {
-    if source.trim().is_empty() {
-        return Ok(String::new());
-    }
-    let val: serde_json::Value = serde_json::from_str(source)
-        .map_err(|e| format!("Invalid JSON: {e}"))?;
-    let mut formatted = serde_json::to_string_pretty(&val)
-        .map_err(|e| format!("Failed to serialize JSON: {e}"))?;
-    formatted.push('\n');
-    Ok(formatted)
-}
-
-/// Minify a JSON string.
-#[allow(dead_code)]
-pub fn minify_json(source: &str) -> Result<String, String> {
-    if source.trim().is_empty() {
-        return Ok(String::new());
-    }
-    let val: serde_json::Value = serde_json::from_str(source)
-        .map_err(|e| format!("Invalid JSON: {e}"))?;
-    serde_json::to_string(&val).map_err(|e| format!("Failed to minify JSON: {e}"))
-}
-
-/// Format TOML document.
-pub fn format_toml(source: &str) -> Result<String, String> {
-    if source.trim().is_empty() {
-        return Ok(String::new());
-    }
-    let val: toml::Value = toml::from_str(source)
-        .map_err(|e| format!("Invalid TOML: {e}"))?;
-    let mut formatted = toml::to_string_pretty(&val)
-        .map_err(|e| format!("Failed to serialize TOML: {e}"))?;
-    if !formatted.ends_with('\n') {
-        formatted.push('\n');
-    }
-    Ok(formatted)
-}
-
-/// Format YAML document.
-pub fn format_yaml(source: &str) -> Result<String, String> {
-    if source.trim().is_empty() {
-        return Ok(String::new());
-    }
-    let val: serde_yaml::Value = serde_yaml::from_str(source)
-        .map_err(|e| format!("Invalid YAML: {e}"))?;
-    let mut formatted = serde_yaml::to_string(&val)
-        .map_err(|e| format!("Failed to serialize YAML: {e}"))?;
-    if !formatted.ends_with('\n') {
-        formatted.push('\n');
-    }
-    Ok(formatted)
-}
-
-/// Markdown source formatter supporting table alignment, whitespace cleanup,
-/// code block preservation, and frontmatter handling.
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ColumnAlignment {
     Left,
@@ -104,17 +34,14 @@ impl ColumnAlignment {
     }
 }
 
-/// Check if a line looks like a Markdown table row or delimiter.
 fn is_table_row(line: &str) -> bool {
     let trimmed = line.trim();
     if trimmed.is_empty() {
         return false;
     }
-    // Must contain at least one pipe and start or end with a pipe, or contain multiple pipes
     trimmed.contains('|') && (trimmed.starts_with('|') || trimmed.ends_with('|') || trimmed.matches('|').count() >= 2)
 }
 
-/// Check if a line is a valid table delimiter line (e.g. `| --- | :---: | ---: |`).
 fn is_table_delimiter_row(line: &str) -> bool {
     let trimmed = line.trim();
     if !trimmed.contains('|') || !trimmed.contains('-') {
@@ -130,7 +57,6 @@ fn is_table_delimiter_row(line: &str) -> bool {
     })
 }
 
-/// Split a table row into cells, respecting escaped pipes `\|`.
 fn split_table_row(line: &str) -> Vec<String> {
     let mut trimmed = line.trim();
     if let Some(stripped) = trimmed.strip_prefix('|') {
@@ -160,7 +86,6 @@ fn split_table_row(line: &str) -> Vec<String> {
     cells
 }
 
-/// Format a block of table lines into an aligned ASCII grid.
 fn format_table_block(lines: &[&str]) -> Vec<String> {
     if lines.len() < 2 {
         return lines.iter().map(|l| (*l).to_string()).collect();
@@ -172,14 +97,12 @@ fn format_table_block(lines: &[&str]) -> Vec<String> {
         _ => return lines.iter().map(|l| (*l).to_string()).collect(),
     };
 
-    // Parse all rows into cells
     let parsed_rows: Vec<Vec<String>> = lines.iter().map(|l| split_table_row(l)).collect();
     let num_cols = parsed_rows.iter().map(Vec::len).max().unwrap_or(0);
     if num_cols == 0 {
         return lines.iter().map(|l| (*l).to_string()).collect();
     }
 
-    // Parse alignments from delimiter row
     let alignments: Vec<ColumnAlignment> = (0..num_cols)
         .map(|col_idx| {
             parsed_rows
@@ -189,7 +112,6 @@ fn format_table_block(lines: &[&str]) -> Vec<String> {
         })
         .collect();
 
-    // Compute column widths
     let mut col_widths = vec![3usize; num_cols];
     for (row_idx, row) in parsed_rows.iter().enumerate() {
         if row_idx == delimiter_idx {
@@ -202,11 +124,9 @@ fn format_table_block(lines: &[&str]) -> Vec<String> {
         }
     }
 
-    // Format rows
     let mut formatted_rows = Vec::with_capacity(parsed_rows.len());
     for (row_idx, row) in parsed_rows.iter().enumerate() {
         if row_idx == delimiter_idx {
-            // Delimiter row
             let delimiter_cells: Vec<String> = (0..num_cols)
                 .map(|col_idx| {
                     let align = alignments.get(col_idx).copied().unwrap_or(ColumnAlignment::None);
@@ -216,7 +136,6 @@ fn format_table_block(lines: &[&str]) -> Vec<String> {
                 .collect();
             formatted_rows.push(format!("| {} |", delimiter_cells.join(" | ")));
         } else {
-            // Header or Body row
             let padded_cells: Vec<String> = (0..num_cols)
                 .map(|col_idx| {
                     let cell_content = row.get(col_idx).map_or("", String::as_str);
@@ -270,7 +189,6 @@ pub fn format_markdown(source: &str) -> String {
         let line = raw_lines[i];
         let trimmed = line.trim();
 
-        // 1. Frontmatter detection at start of document
         if i == 0 && (trimmed == "---" || trimmed == "+++") {
             in_frontmatter = true;
             formatted_lines.push(line.to_string());
@@ -287,7 +205,6 @@ pub fn format_markdown(source: &str) -> String {
             continue;
         }
 
-        // 2. Code fence detection (``` or ~~~)
         let trimmed_start = line.trim_start();
         if !in_code_block && (trimmed_start.starts_with("```") || trimmed_start.starts_with("~~~")) {
             let fence_char = trimmed_start.chars().next().unwrap_or('`');
@@ -305,13 +222,11 @@ pub fn format_markdown(source: &str) -> String {
             if trimmed_start.starts_with(&fence_prefix) && trimmed_start.chars().all(|c| c == code_fence_char || c.is_whitespace()) {
                 in_code_block = false;
             }
-            // In code blocks, preserve line content exactly as is (only trim trailing newline)
             formatted_lines.push(line.to_string());
             i += 1;
             continue;
         }
 
-        // 3. Table block detection
         if is_table_row(line) {
             let mut table_lines = Vec::new();
             while i < raw_lines.len() && is_table_row(raw_lines[i]) {
@@ -324,10 +239,8 @@ pub fn format_markdown(source: &str) -> String {
             continue;
         }
 
-        // 4. Regular line formatting
         let trimmed_line = line.trim_end();
 
-        // Format headings: ensure single space after '#' (e.g. '##Heading' -> '## Heading')
         if trimmed_line.starts_with('#') {
             let hash_count = trimmed_line.chars().take_while(|&c| c == '#').count();
             if hash_count <= 6 {
@@ -344,7 +257,6 @@ pub fn format_markdown(source: &str) -> String {
         i += 1;
     }
 
-    // 5. Clean up excessive consecutive blank lines (limit to max 2 blank lines)
     let mut normalized_lines: Vec<String> = Vec::new();
     let mut blank_count = 0;
 
@@ -360,7 +272,6 @@ pub fn format_markdown(source: &str) -> String {
         }
     }
 
-    // 6. Ensure single trailing newline
     while normalized_lines.last().is_some_and(String::is_empty) {
         normalized_lines.pop();
     }
@@ -425,46 +336,5 @@ Paragraph text.
         let input = "Paragraph 1\n\n\n\n\nParagraph 2\n";
         let formatted = format_markdown(input);
         assert_eq!(formatted, "Paragraph 1\n\n\nParagraph 2\n");
-    }
-
-    #[test]
-    fn test_format_json() {
-        let raw = r#"{"name":"fast-md","version":"0.1.2","dependencies":{"dioxus":"0.6"}}"#;
-        if let Ok(formatted) = format_json(raw) {
-            assert!(formatted.contains("  \"name\": \"fast-md\""));
-            assert!(formatted.contains("  \"dependencies\": {"));
-            assert!(formatted.ends_with('\n'));
-
-            if let Ok(minified) = minify_json(&formatted) {
-                assert_eq!(minified, r#"{"dependencies":{"dioxus":"0.6"},"name":"fast-md","version":"0.1.2"}"#);
-            } else {
-                panic!("failed to minify json");
-            }
-        } else {
-            panic!("failed to format json");
-        }
-    }
-
-    #[test]
-    fn test_format_toml() {
-        let raw = "[package]\nname=\"fast-md\"\nversion=\"0.1.2\"\n";
-        if let Ok(formatted) = format_toml(raw) {
-            assert!(formatted.contains("[package]"));
-            assert!(formatted.contains("name = \"fast-md\""));
-            assert!(formatted.contains("version = \"0.1.2\""));
-        } else {
-            panic!("failed to format toml");
-        }
-    }
-
-    #[test]
-    fn test_format_yaml() {
-        let raw = "name: fast-md\nversion: '0.1.2'\nfeatures:\n- desktop\n- syntect\n";
-        if let Ok(formatted) = format_yaml(raw) {
-            assert!(formatted.contains("name: fast-md"));
-            assert!(formatted.contains("- desktop"));
-        } else {
-            panic!("failed to format yaml");
-        }
     }
 }

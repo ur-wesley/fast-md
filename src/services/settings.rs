@@ -137,23 +137,7 @@ pub fn reveal_settings_folder() {
     if !dir.exists() {
         let _ = fs::create_dir_all(&dir);
     }
-
-    let dir_str = dir.to_string_lossy().to_string();
-
-    #[cfg(target_os = "windows")]
-    {
-        let _ = std::process::Command::new("explorer").arg(&dir_str).spawn();
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        let _ = std::process::Command::new("open").arg(&dir_str).spawn();
-    }
-
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    {
-        let _ = std::process::Command::new("xdg-open").arg(&dir_str).spawn();
-    }
+    crate::services::fs::reveal_in_explorer(&dir);
 }
 
 #[cfg(test)]
@@ -172,6 +156,7 @@ mod tests {
             is_full_width: true,
             zoom_level: 130,
             sidebar_tab: SidebarTab::Files,
+            sidebar_width: 320,
             auto_reload: false,
             sticky_headers: true,
             font_size: 18,

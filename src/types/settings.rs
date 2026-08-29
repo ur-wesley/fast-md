@@ -1,308 +1,7 @@
+use super::{AppTheme, DocumentMode, Language};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::path::PathBuf;
-
-/// Frontmatter metadata extracted from the start of a Markdown/MDX file.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct DocMetadata {
-    pub title: Option<String>,
-    pub description: Option<String>,
-    pub author: Option<String>,
-    pub date: Option<String>,
-    pub tags: Vec<String>,
-    pub extra: BTreeMap<String, String>,
-}
-
-/// Table of Contents entry representing a heading.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TocItem {
-    pub id: String,
-    pub title: String,
-    pub level: u8,
-}
-
-/// Supported document and config file formats.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DocumentFormat {
-    #[default]
-    Markdown,
-    Mdx,
-    Json,
-    Toml,
-    Yaml,
-    Ini,
-    Ron,
-    Xml,
-    PlainText,
-}
-
-impl DocumentFormat {
-    #[must_use]
-    pub fn from_extension(ext: &str) -> Self {
-        match ext.to_ascii_lowercase().as_str() {
-            "md" | "markdown" | "mdown" => Self::Markdown,
-            "mdx" => Self::Mdx,
-            "json" | "jsonc" | "json5" => Self::Json,
-            "toml" => Self::Toml,
-            "yaml" | "yml" => Self::Yaml,
-            "ini" | "cfg" | "conf" => Self::Ini,
-            "ron" => Self::Ron,
-            "xml" | "svg" => Self::Xml,
-            _ => Self::PlainText,
-        }
-    }
-
-    #[must_use]
-    pub fn from_path(path: Option<&std::path::Path>) -> Self {
-        path.and_then(|p| p.extension())
-            .and_then(|ext| ext.to_str())
-            .map_or(Self::Markdown, Self::from_extension)
-    }
-
-    #[must_use]
-    pub const fn is_config(self) -> bool {
-        matches!(self, Self::Json | Self::Toml | Self::Yaml | Self::Ini | Self::Ron | Self::Xml)
-    }
-
-    #[must_use]
-    pub const fn is_markdown(self) -> bool {
-        matches!(self, Self::Markdown | Self::Mdx)
-    }
-
-    #[must_use]
-    pub const fn syntax_token(self) -> &'static str {
-        match self {
-            Self::Markdown | Self::Mdx => "markdown",
-            Self::Json => "json",
-            Self::Toml => "toml",
-            Self::Yaml => "yaml",
-            Self::Ini => "ini",
-            Self::Ron => "rust",
-            Self::Xml => "xml",
-            Self::PlainText => "text",
-        }
-    }
-
-    #[must_use]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::Markdown => "Markdown",
-            Self::Mdx => "MDX",
-            Self::Json => "JSON",
-            Self::Toml => "TOML",
-            Self::Yaml => "YAML",
-            Self::Ini => "INI",
-            Self::Ron => "RON",
-            Self::Xml => "XML",
-            Self::PlainText => "Plain Text",
-        }
-    }
-}
-
-/// Fully parsed document or config file ready for rendering.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct ParsedDocument {
-    pub html_content: String,
-    pub toc: Vec<TocItem>,
-    pub metadata: Option<DocMetadata>,
-    pub word_count: usize,
-    pub reading_time_minutes: usize,
-    pub format: DocumentFormat,
-    pub validation_error: Option<String>,
-}
-
-/// Open document viewing / editing modes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DocumentMode {
-    #[default]
-    View,
-    Split,
-    Wysiwyg,
-    Source,
-}
-
-impl DocumentMode {
-    #[must_use]
-    #[allow(dead_code)]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::View => "view",
-            Self::Split => "split",
-            Self::Wysiwyg => "wysiwyg",
-            Self::Source => "source",
-        }
-    }
-
-    #[must_use]
-    #[allow(dead_code)]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::View => "View",
-            Self::Split => "Split Preview",
-            Self::Wysiwyg => "WYSIWYG",
-            Self::Source => "Source",
-        }
-    }
-
-    #[must_use]
-    pub const fn next(self) -> Self {
-        match self {
-            Self::View => Self::Split,
-            Self::Split => Self::Wysiwyg,
-            Self::Wysiwyg => Self::Source,
-            Self::Source => Self::View,
-        }
-    }
-}
-
-/// Open document tab state.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TabItem {
-    pub id: usize,
-    pub path: Option<PathBuf>,
-    pub title: String,
-    pub content: String,
-    pub parsed: ParsedDocument,
-    pub is_dirty: bool,
-}
-
-/// Available visual themes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum AppTheme {
-    #[default]
-    Dark,
-    Midnight,
-    Light,
-    Nord,
-    SolarizedDark,
-    CatppuccinLatte,
-    CatppuccinFrappe,
-    CatppuccinMacchiato,
-    CatppuccinMocha,
-}
-
-impl AppTheme {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Dark => "theme-dark",
-            Self::Midnight => "theme-midnight",
-            Self::Light => "theme-light",
-            Self::Nord => "theme-nord",
-            Self::SolarizedDark => "theme-solarized",
-            Self::CatppuccinLatte => "theme-catppuccin-latte",
-            Self::CatppuccinFrappe => "theme-catppuccin-frappe",
-            Self::CatppuccinMacchiato => "theme-catppuccin-macchiato",
-            Self::CatppuccinMocha => "theme-catppuccin-mocha",
-        }
-    }
-
-    #[must_use]
-    #[allow(dead_code)]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::Dark => "GitHub Dark",
-            Self::Midnight => "Obsidian Night",
-            Self::Light => "GitHub Light",
-            Self::Nord => "Nordic Frost",
-            Self::SolarizedDark => "Solarized Dark",
-            Self::CatppuccinLatte => "Catppuccin Latte",
-            Self::CatppuccinFrappe => "Catppuccin Frappé",
-            Self::CatppuccinMacchiato => "Catppuccin Macchiato",
-            Self::CatppuccinMocha => "Catppuccin Mocha",
-        }
-    }
-
-    #[must_use]
-    pub const fn default_accent(self) -> &'static str {
-        match self {
-            Self::Dark => "#58a6ff",
-            Self::Midnight => "#8b5cf6",
-            Self::Light => "#0969da",
-            Self::Nord => "#88c0d0",
-            Self::SolarizedDark => "#268bd2",
-            Self::CatppuccinLatte => "#8839ef",
-            Self::CatppuccinFrappe => "#ca9ee6",
-            Self::CatppuccinMacchiato => "#c6a0f6",
-            Self::CatppuccinMocha => "#cba6f7",
-        }
-    }
-
-    #[must_use]
-    #[allow(dead_code)]
-    pub const fn default_bg(self) -> &'static str {
-        match self {
-            Self::Dark => "#161b22",
-            Self::Midnight => "#12141c",
-            Self::Light => "#f6f8fa",
-            Self::Nord => "#3b4252",
-            Self::SolarizedDark => "#073642",
-            Self::CatppuccinLatte => "#eff1f5",
-            Self::CatppuccinFrappe => "#303446",
-            Self::CatppuccinMacchiato => "#24273a",
-            Self::CatppuccinMocha => "#1e1e2e",
-        }
-    }
-
-    #[must_use]
-    pub const fn is_dark(self) -> bool {
-        !matches!(self, Self::Light | Self::CatppuccinLatte)
-    }
-
-    #[must_use]
-    #[allow(dead_code)]
-    pub const fn acrylic_tint(self) -> (u8, u8, u8, u8) {
-        match self {
-            Self::Light => (255, 255, 255, 120),
-            Self::CatppuccinLatte => (239, 241, 245, 120),
-            Self::CatppuccinFrappe => (48, 52, 70, 130),
-            Self::CatppuccinMacchiato => (36, 39, 58, 130),
-            Self::CatppuccinMocha => (30, 30, 46, 130),
-            Self::Midnight => (9, 10, 15, 130),
-            Self::Nord => (46, 52, 64, 130),
-            Self::SolarizedDark => (0, 43, 54, 130),
-            Self::Dark => (13, 17, 23, 130),
-        }
-    }
-}
-
-/// User interface display language.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum Language {
-    #[default]
-    En,
-    De,
-}
-
-impl Language {
-    #[must_use]
-    #[allow(dead_code)]
-    pub const fn code(self) -> &'static str {
-        match self {
-            Self::En => "en",
-            Self::De => "de",
-        }
-    }
-
-    #[must_use]
-    #[allow(dead_code)]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::En => "English",
-            Self::De => "Deutsch",
-        }
-    }
-
-    #[must_use]
-    #[allow(dead_code)]
-    pub const fn strings(self) -> &'static crate::i18n::Translations {
-        crate::i18n::t(self)
-    }
-}
+use std::sync::Arc;
 
 /// Active sidebar tab.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -399,6 +98,10 @@ const fn default_font_size() -> u32 {
     16
 }
 
+const fn default_sidebar_width() -> u32 {
+    260
+}
+
 /// Persistent user configuration and application preferences stored in `settings.json`.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -430,6 +133,10 @@ pub struct AppSettings {
     /// Initial sidebar tab (Outline / Files).
     #[serde(default)]
     pub sidebar_tab: SidebarTab,
+
+    /// Sidebar width in pixels.
+    #[serde(default = "default_sidebar_width")]
+    pub sidebar_width: u32,
 
     /// Active file visibility filter for the sidebar file explorer.
     #[serde(default)]
@@ -486,6 +193,7 @@ impl Default for AppSettings {
             zoom_level: default_zoom(),
             show_sidebar: default_true(),
             sidebar_tab: SidebarTab::Toc,
+            sidebar_width: default_sidebar_width(),
             file_filter_mode: FileFilterMode::MarkdownAndConfig,
             auto_reload: default_true(),
             sticky_headers: false,
@@ -596,17 +304,27 @@ impl AppSettings {
 }
 
 /// Recursive file tree node.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct FileTreeEntry {
     pub name: String,
     pub path: PathBuf,
     pub is_dir: bool,
-    pub children: Vec<Self>,
+    pub children: Arc<Vec<Self>>,
+}
+
+impl PartialEq for FileTreeEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.path == other.path
+            && self.is_dir == other.is_dir
+            && Arc::ptr_eq(&self.children, &other.children)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::DocumentFormat;
 
     #[test]
     fn test_catppuccin_themes() {
@@ -767,4 +485,3 @@ mod tests {
         assert!(all_files.matches_path(&PathBuf::from("test.unknown")));
     }
 }
-

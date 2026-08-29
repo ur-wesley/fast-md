@@ -2,6 +2,7 @@ use crate::types::{FileFilterMode, FileTreeEntry};
 use eyre::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// Read the entire contents of a file safely into a String.
 pub fn read_document_file(path: &Path) -> Result<String> {
@@ -11,6 +12,49 @@ pub fn read_document_file(path: &Path) -> Result<String> {
 /// Save content to a file safely.
 pub fn save_document_file(path: &Path, content: &str) -> Result<()> {
     fs::write(path, content).with_context(|| format!("Failed to write file to {}", path.display()))
+}
+
+/// Reveal a file or folder in the OS file explorer.
+pub fn reveal_in_explorer(path: &Path) {
+    if !path.exists() {
+        return;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let path_str = path.to_string_lossy().to_string();
+        if path.is_file() {
+            let _ = std::process::Command::new("explorer")
+                .args(["/select,", &path_str])
+                .spawn();
+        } else {
+            let _ = std::process::Command::new("explorer").arg(path_str).spawn();
+        }
+        return;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let path_str = path.to_string_lossy().to_string();
+        if path.is_file() {
+            let _ = std::process::Command::new("open")
+                .args(["-R", &path_str])
+                .spawn();
+        } else {
+            let _ = std::process::Command::new("open").arg(path_str).spawn();
+        }
+        return;
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let dir = if path.is_dir() {
+            path
+        } else {
+            path.parent().unwrap_or(path)
+        };
+        let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
+    }
 }
 
 /// Recursively build a file tree filtered according to the specified `FileFilterMode`.
@@ -45,7 +89,7 @@ pub fn scan_file_tree(dir: &Path, filter_mode: FileFilterMode) -> Result<Vec<Fil
                     name: file_name,
                     path,
                     is_dir: true,
-                    children,
+                    children: Arc::new(children),
                 });
             }
         } else if filter_mode.matches_path(&path) {
@@ -53,7 +97,7 @@ pub fn scan_file_tree(dir: &Path, filter_mode: FileFilterMode) -> Result<Vec<Fil
                 name: file_name,
                 path,
                 is_dir: false,
-                children: Vec::new(),
+                children: Arc::new(Vec::new()),
             });
         }
     }
