@@ -1,8 +1,8 @@
-use crate::services::fs::{read_document_file, scan_markdown_tree};
+use crate::services::fs::{read_document_file, save_document_file, scan_markdown_tree};
 use crate::services::markdown::parse_markdown_document;
 use crate::services::settings::{load_settings, save_settings};
 use crate::types::{
-    AppSettings, AppTheme, FileTreeEntry, Language, SidebarTab, TabItem, UpdateStatus,
+    AppSettings, AppTheme, DocumentMode, FileTreeEntry, Language, SidebarTab, TabItem, UpdateStatus,
 };
 use std::path::{Path, PathBuf};
 
@@ -97,6 +97,7 @@ pub struct AppStore {
     pub tabs: Vec<TabItem>,
     pub active_tab_id: usize,
     pub next_tab_id: usize,
+    pub mode: DocumentMode,
     pub language: Language,
     pub theme: AppTheme,
     pub primary_color: Option<String>,
@@ -125,9 +126,11 @@ impl Default for AppStore {
                 title: "Welcome.md".to_string(),
                 content: WELCOME_DOC.to_string(),
                 parsed: welcome_parsed,
+                is_dirty: false,
             }],
             active_tab_id: 1,
             next_tab_id: 2,
+            mode: settings.default_mode,
             language: settings.language,
             theme: settings.theme,
             primary_color: settings.primary_color.clone(),
@@ -161,6 +164,7 @@ impl AppStore {
         let effective_language = cli_lang.unwrap_or(settings.language);
 
         let mut store = Self {
+            mode: settings.default_mode,
             language: effective_language,
             theme: effective_theme,
             primary_color: settings.primary_color.clone(),
@@ -233,6 +237,7 @@ impl AppStore {
             title,
             content,
             parsed,
+            is_dirty: false,
         });
 
         self.active_tab_id = tab_id;
@@ -281,8 +286,101 @@ impl AppStore {
             title: format!("Doc-{tab_id}.md"),
             content: WELCOME_DOC.to_string(),
             parsed,
+            is_dirty: false,
         });
         self.active_tab_id = tab_id;
+    }
+
+    /// Update active tab content when user types in editor or formats in WYSIWYG.
+    pub fn update_active_tab_content(&mut self, new_content: String) {
+        let active_id = self.active_tab_id;
+        if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+            if tab.content != new_content {
+                tab.content = new_content;
+                tab.parsed = parse_markdown_document(&tab.content);
+                tab.is_dirty = true;
+            }
+        }
+    }
+
+    /// Format the Markdown source of the active tab (aligns tables, normalizes whitespace).
+    pub fn format_active_tab(&mut self) {
+        let active_id = self.active_tab_id;
+        if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+            let formatted = crate::services::formatter::format_markdown(&tab.content);
+            if tab.content != formatted {
+                tab.content = formatted;
+                tab.parsed = parse_markdown_document(&tab.content);
+                tab.is_dirty = true;
+            }
+        }
+    }
+
+    /// Save the active tab to disk if it has a file path. Returns true if saved directly.
+    pub fn save_active_tab(&mut self) -> Result<bool, eyre::Report> {
+        if self.settings.format_on_save {
+            self.format_active_tab();
+        }
+
+        let active_id = self.active_tab_id;
+        if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+            if let Some(ref path) = tab.path {
+                save_document_file(path, &tab.content)?;
+                tab.is_dirty = false;
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// Save a tab with a newly specified path (e.g. after Save As dialog).
+    pub fn save_tab_with_path(&mut self, tab_id: usize, path: PathBuf) -> Result<(), eyre::Report> {
+        if self.settings.format_on_save {
+            self.format_active_tab();
+        }
+
+        if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == tab_id) {
+            save_document_file(&path, &tab.content)?;
+            let file_name = path
+                .file_name()
+                .map_or_else(|| "Document.md".to_string(), |f| f.to_string_lossy().to_string());
+            tab.path = Some(path.clone());
+            tab.title = file_name;
+            tab.is_dirty = false;
+
+            self.settings.add_recent_file(path);
+            self.persist_settings();
+        }
+        Ok(())
+    }
+
+    /// Set whether to automatically format Markdown on save.
+    #[allow(dead_code)]
+    pub fn set_format_on_save(&mut self, enabled: bool) {
+        self.settings.format_on_save = enabled;
+        self.persist_settings();
+    }
+
+    /// Toggle whether to automatically format Markdown on save.
+    pub fn toggle_format_on_save(&mut self) {
+        self.settings.format_on_save = !self.settings.format_on_save;
+        self.persist_settings();
+    }
+
+    /// Set document viewing/editing mode.
+    pub const fn set_mode(&mut self, mode: DocumentMode) {
+        self.mode = mode;
+    }
+
+    /// Cycle to the next document viewing/editing mode.
+    pub const fn cycle_mode(&mut self) {
+        self.mode = self.mode.next();
+    }
+
+    /// Set and persist default startup document mode.
+    pub fn set_default_mode(&mut self, mode: DocumentMode) {
+        self.settings.default_mode = mode;
+        self.persist_settings();
     }
 
     /// Update file content if changed on disk.
@@ -292,6 +390,7 @@ impl AppStore {
                 if p == path && tab.content != new_content {
                     tab.content.clone_from(&new_content.to_string());
                     tab.parsed = parse_markdown_document(new_content);
+                    tab.is_dirty = false;
                 }
             }
         }
@@ -508,5 +607,43 @@ mod tests {
         assert!(store.settings.auto_reload);
         assert!(!store.sticky_headers);
     }
+
+    #[test]
+    fn test_tab_editing_and_dirty_state() {
+        let mut store = AppStore::default();
+        assert_eq!(store.mode, DocumentMode::View);
+        assert!(!store.tabs[0].is_dirty);
+
+        store.cycle_mode();
+        assert_eq!(store.mode, DocumentMode::Split);
+        store.set_mode(DocumentMode::Wysiwyg);
+        assert_eq!(store.mode, DocumentMode::Wysiwyg);
+
+        store.update_active_tab_content("# Modified Title\n\nNew edited body text.".to_string());
+        assert!(store.tabs[0].is_dirty);
+        assert_eq!(store.tabs[0].parsed.toc.len(), 1);
+        assert_eq!(store.tabs[0].parsed.toc[0].title, "Modified Title");
+    }
+
+    #[test]
+    fn test_formatting_and_format_on_save() {
+        let mut store = AppStore::default();
+        let unformatted = "# Unformatted\n| A | B |\n|---|---|\n| 1 | 2 |\n";
+        store.update_active_tab_content(unformatted.to_string());
+
+        assert!(store.settings.format_on_save);
+        store.format_active_tab();
+
+        let formatted = &store.tabs[0].content;
+        assert!(formatted.contains("| A   | B   |"));
+        assert!(formatted.contains("| --- | --- |"));
+        assert!(formatted.contains("| 1   | 2   |"));
+
+        store.set_format_on_save(false);
+        assert!(!store.settings.format_on_save);
+        store.toggle_format_on_save();
+        assert!(store.settings.format_on_save);
+    }
 }
+
 

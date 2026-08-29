@@ -1,4 +1,4 @@
-use crate::types::FileTreeEntry;
+use crate::types::{FileFilterMode, FileTreeEntry};
 use eyre::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,8 +13,8 @@ pub fn save_document_file(path: &Path, content: &str) -> Result<()> {
     fs::write(path, content).with_context(|| format!("Failed to write file to {}", path.display()))
 }
 
-/// Recursively build a file tree filtered to Markdown, MDX, and text documentation files.
-pub fn scan_markdown_tree(dir: &Path) -> Result<Vec<FileTreeEntry>> {
+/// Recursively build a file tree filtered according to the specified `FileFilterMode`.
+pub fn scan_file_tree(dir: &Path, filter_mode: FileFilterMode) -> Result<Vec<FileTreeEntry>> {
     let mut entries = Vec::new();
 
     if !dir.is_dir() {
@@ -38,7 +38,7 @@ pub fn scan_markdown_tree(dir: &Path) -> Result<Vec<FileTreeEntry>> {
         let is_dir = entry.file_type().is_ok_and(|ft| ft.is_dir());
 
         if is_dir {
-            let children = scan_markdown_tree(&path).unwrap_or_default();
+            let children = scan_file_tree(&path, filter_mode).unwrap_or_default();
             // Only keep directory if it contains relevant files or subdirectories
             if !children.is_empty() {
                 entries.push(FileTreeEntry {
@@ -48,37 +48,32 @@ pub fn scan_markdown_tree(dir: &Path) -> Result<Vec<FileTreeEntry>> {
                     children,
                 });
             }
-        } else {
-            let is_doc = path
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .is_some_and(|ext| {
-                    matches!(
-                        ext.to_ascii_lowercase().as_str(),
-                        "md" | "mdx" | "markdown" | "mdown" | "txt" | "json" | "yaml" | "yml" | "toml" | "rst"
-                    )
-                });
-
-            if is_doc {
-                entries.push(FileTreeEntry {
-                    name: file_name,
-                    path,
-                    is_dir: false,
-                    children: Vec::new(),
-                });
-            }
+        } else if filter_mode.matches_path(&path) {
+            entries.push(FileTreeEntry {
+                name: file_name,
+                path,
+                is_dir: false,
+                children: Vec::new(),
+            });
         }
     }
 
     Ok(entries)
 }
 
-/// Prompt native asynchronous file picker dialog for opening Markdown or MDX documents.
+/// Backward-compatible alias for scanning markdown and config tree.
+pub fn scan_markdown_tree(dir: &Path) -> Result<Vec<FileTreeEntry>> {
+    scan_file_tree(dir, FileFilterMode::MarkdownAndConfig)
+}
+
+/// Prompt native asynchronous file picker dialog for opening documents or configs.
 pub async fn pick_file_async() -> Option<PathBuf> {
     let handle = rfd::AsyncFileDialog::new()
-        .add_filter("Markdown / MDX", &["md", "mdx", "markdown", "txt"])
+        .add_filter("Markdown & MDX", &["md", "mdx", "markdown", "txt"])
+        .add_filter("Config Files (JSON, TOML, YAML)", &["json", "jsonc", "toml", "yaml", "yml", "ini", "ron", "xml"])
+        .add_filter("All Supported Files", &["md", "mdx", "markdown", "txt", "json", "toml", "yaml", "yml", "ini", "ron", "xml", "rs", "js", "ts", "html", "css"])
         .add_filter("All Files", &["*"])
-        .set_title("Open Markdown / MDX Document")
+        .set_title("Open Document / Config File")
         .pick_file()
         .await;
 
@@ -101,6 +96,24 @@ pub async fn pick_export_html_async(default_name: &str) -> Option<PathBuf> {
         .add_filter("HTML Document", &["html", "htm"])
         .set_file_name(default_name)
         .set_title("Export as HTML")
+        .save_file()
+        .await;
+
+    handle.map(|h| h.path().to_path_buf())
+}
+
+/// Prompt native asynchronous save dialog for saving documents or config files.
+pub async fn pick_save_file_async(default_name: &str) -> Option<PathBuf> {
+    let handle = rfd::AsyncFileDialog::new()
+        .add_filter("Markdown Document", &["md", "markdown"])
+        .add_filter("MDX Document", &["mdx"])
+        .add_filter("JSON Document", &["json"])
+        .add_filter("TOML Document", &["toml"])
+        .add_filter("YAML Document", &["yaml", "yml"])
+        .add_filter("Plain Text Document", &["txt"])
+        .add_filter("All Files", &["*"])
+        .set_file_name(default_name)
+        .set_title("Save Document")
         .save_file()
         .await;
 

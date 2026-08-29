@@ -36,6 +36,14 @@ pub struct ToolbarTranslations {
     pub folder: &'static str,
     pub new_tab: &'static str,
     pub new: &'static str,
+    pub save_file: &'static str,
+    pub save: &'static str,
+    pub saved: &'static str,
+    pub unsaved: &'static str,
+    pub mode_view: &'static str,
+    pub mode_split: &'static str,
+    pub mode_wysiwyg: &'static str,
+    pub mode_source: &'static str,
     pub column_layout: &'static str,
     pub column: &'static str,
     pub full_width_layout: &'static str,
@@ -61,6 +69,31 @@ pub struct ToolbarTranslations {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EditorTranslations {
+    pub bold: &'static str,
+    pub italic: &'static str,
+    pub strikethrough: &'static str,
+    pub h1: &'static str,
+    pub h2: &'static str,
+    pub h3: &'static str,
+    pub blockquote: &'static str,
+    pub inline_code: &'static str,
+    pub code_block: &'static str,
+    pub bullet_list: &'static str,
+    pub numbered_list: &'static str,
+    pub task_list: &'static str,
+    pub link: &'static str,
+    pub image: &'static str,
+    pub table: &'static str,
+    pub callout: &'static str,
+    pub format_document: &'static str,
+    pub undo: &'static str,
+    pub redo: &'static str,
+    pub wysiwyg_placeholder: &'static str,
+    pub source_placeholder: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SidebarTranslations {
     pub outline: &'static str,
     pub files: &'static str,
@@ -79,8 +112,12 @@ pub struct StatusBarTranslations {
     pub text_doc: &'static str,
     pub generic_doc: &'static str,
     pub words_suffix: &'static str,
+    pub chars_suffix: &'static str,
+    pub lines_suffix: &'static str,
     pub min_suffix: &'static str,
     pub sec_suffix: &'static str,
+    pub status_saved: &'static str,
+    pub status_unsaved: &'static str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -151,6 +188,10 @@ pub struct SettingsTranslations {
     pub pick_custom_color_title: &'static str,
 
     // Reader & Layout tab
+    pub default_mode_title: &'static str,
+    pub default_mode_desc: &'static str,
+    pub format_on_save_title: &'static str,
+    pub format_on_save_desc: &'static str,
     pub reading_layout_title: &'static str,
     pub reading_layout_desc: &'static str,
     pub reading_column: &'static str,
@@ -207,6 +248,7 @@ pub struct Translations {
     pub common: CommonTranslations,
     pub title_bar: TitleBarTranslations,
     pub toolbar: ToolbarTranslations,
+    pub editor: EditorTranslations,
     pub sidebar: SidebarTranslations,
     pub status_bar: StatusBarTranslations,
     pub tab_bar: TabBarTranslations,
@@ -256,9 +298,21 @@ mod tests {
         assert!(!en.status_bar.words_suffix.is_empty());
         assert!(!de.status_bar.words_suffix.is_empty());
 
+        // Verify editor
+        assert!(!en.editor.bold.is_empty());
+        assert!(!de.editor.bold.is_empty());
+        assert!(!en.editor.format_document.is_empty());
+        assert!(!de.editor.format_document.is_empty());
+        assert!(!en.editor.wysiwyg_placeholder.is_empty());
+        assert!(!de.editor.wysiwyg_placeholder.is_empty());
+
         // Verify settings
         assert!(!en.settings.modal_title.is_empty());
         assert!(!de.settings.modal_title.is_empty());
+        assert!(!en.settings.default_mode_title.is_empty());
+        assert!(!de.settings.default_mode_title.is_empty());
+        assert!(!en.settings.format_on_save_title.is_empty());
+        assert!(!de.settings.format_on_save_title.is_empty());
         assert!(!en.settings.language_section_title.is_empty());
         assert!(!de.settings.language_section_title.is_empty());
         assert!(!en.settings.tab_updates.is_empty());

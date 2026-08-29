@@ -21,7 +21,87 @@ pub struct TocItem {
     pub level: u8,
 }
 
-/// Fully parsed Markdown/MDX document ready for rendering.
+/// Supported document and config file formats.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DocumentFormat {
+    #[default]
+    Markdown,
+    Mdx,
+    Json,
+    Toml,
+    Yaml,
+    Ini,
+    Ron,
+    Xml,
+    PlainText,
+}
+
+impl DocumentFormat {
+    #[must_use]
+    pub fn from_extension(ext: &str) -> Self {
+        match ext.to_ascii_lowercase().as_str() {
+            "md" | "markdown" | "mdown" => Self::Markdown,
+            "mdx" => Self::Mdx,
+            "json" | "jsonc" | "json5" => Self::Json,
+            "toml" => Self::Toml,
+            "yaml" | "yml" => Self::Yaml,
+            "ini" | "cfg" | "conf" => Self::Ini,
+            "ron" => Self::Ron,
+            "xml" | "svg" => Self::Xml,
+            _ => Self::PlainText,
+        }
+    }
+
+    #[must_use]
+    pub fn from_path(path: Option<&std::path::Path>) -> Self {
+        path.and_then(|p| p.extension())
+            .and_then(|ext| ext.to_str())
+            .map_or(Self::Markdown, Self::from_extension)
+    }
+
+    #[must_use]
+    pub const fn is_config(self) -> bool {
+        matches!(self, Self::Json | Self::Toml | Self::Yaml | Self::Ini | Self::Ron | Self::Xml)
+    }
+
+    #[must_use]
+    pub const fn is_markdown(self) -> bool {
+        matches!(self, Self::Markdown | Self::Mdx)
+    }
+
+    #[must_use]
+    pub const fn syntax_token(self) -> &'static str {
+        match self {
+            Self::Markdown => "markdown",
+            Self::Mdx => "markdown",
+            Self::Json => "json",
+            Self::Toml => "toml",
+            Self::Yaml => "yaml",
+            Self::Ini => "ini",
+            Self::Ron => "rust",
+            Self::Xml => "xml",
+            Self::PlainText => "text",
+        }
+    }
+
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Markdown => "Markdown",
+            Self::Mdx => "MDX",
+            Self::Json => "JSON",
+            Self::Toml => "TOML",
+            Self::Yaml => "YAML",
+            Self::Ini => "INI",
+            Self::Ron => "RON",
+            Self::Xml => "XML",
+            Self::PlainText => "Plain Text",
+        }
+    }
+}
+
+/// Fully parsed document or config file ready for rendering.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ParsedDocument {
     pub html_content: String,
@@ -29,6 +109,53 @@ pub struct ParsedDocument {
     pub metadata: Option<DocMetadata>,
     pub word_count: usize,
     pub reading_time_minutes: usize,
+    pub format: DocumentFormat,
+    pub validation_error: Option<String>,
+}
+
+/// Open document viewing / editing modes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DocumentMode {
+    #[default]
+    View,
+    Split,
+    Wysiwyg,
+    Source,
+}
+
+impl DocumentMode {
+    #[must_use]
+    #[allow(dead_code)]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::View => "view",
+            Self::Split => "split",
+            Self::Wysiwyg => "wysiwyg",
+            Self::Source => "source",
+        }
+    }
+
+    #[must_use]
+    #[allow(dead_code)]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::View => "View",
+            Self::Split => "Split Preview",
+            Self::Wysiwyg => "WYSIWYG",
+            Self::Source => "Source",
+        }
+    }
+
+    #[must_use]
+    pub const fn next(self) -> Self {
+        match self {
+            Self::View => Self::Split,
+            Self::Split => Self::Wysiwyg,
+            Self::Wysiwyg => Self::Source,
+            Self::Source => Self::View,
+        }
+    }
 }
 
 /// Open document tab state.
@@ -39,6 +166,7 @@ pub struct TabItem {
     pub title: String,
     pub content: String,
     pub parsed: ParsedDocument,
+    pub is_dirty: bool,
 }
 
 /// Available visual themes.
@@ -186,6 +314,77 @@ pub enum SidebarTab {
     Files,
 }
 
+/// File visibility filter mode in the sidebar file explorer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FileFilterMode {
+    #[default]
+    MarkdownAndConfig,
+    MarkdownOnly,
+    AllSupported,
+    AllFiles,
+}
+
+impl FileFilterMode {
+    #[must_use]
+    pub fn matches_extension(self, ext: &str) -> bool {
+        let ext_lower = ext.to_ascii_lowercase();
+        match self {
+            Self::MarkdownOnly => matches!(ext_lower.as_str(), "md" | "mdx" | "markdown" | "mdown"),
+            Self::MarkdownAndConfig => matches!(
+                ext_lower.as_str(),
+                "md" | "mdx" | "markdown" | "mdown" | "json" | "jsonc" | "json5" | "toml" | "yaml" | "yml" | "ini" | "cfg" | "conf" | "ron" | "xml" | "txt" | "rst"
+            ),
+            Self::AllSupported => matches!(
+                ext_lower.as_str(),
+                "md" | "mdx" | "markdown" | "mdown" | "json" | "jsonc" | "json5" | "toml" | "yaml" | "yml" | "ini" | "cfg" | "conf" | "ron" | "xml" | "txt" | "rst"
+                | "rs" | "js" | "ts" | "jsx" | "tsx" | "html" | "css" | "scss" | "py" | "sh" | "bat" | "cmd" | "ps1" | "sql" | "c" | "cpp" | "h" | "go" | "java" | "csv" | "tsv" | "log"
+            ),
+            Self::AllFiles => true,
+        }
+    }
+
+    #[must_use]
+    pub fn matches_path(self, path: &std::path::Path) -> bool {
+        if matches!(self, Self::AllFiles) {
+            return true;
+        }
+        path.extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|ext| self.matches_extension(ext))
+    }
+
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::MarkdownOnly => "MD / MDX",
+            Self::MarkdownAndConfig => "MD + Config",
+            Self::AllSupported => "All Supported",
+            Self::AllFiles => "All Files",
+        }
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::MarkdownOnly => "md",
+            Self::MarkdownAndConfig => "config",
+            Self::AllSupported => "supported",
+            Self::AllFiles => "all",
+        }
+    }
+
+    #[must_use]
+    pub const fn next(self) -> Self {
+        match self {
+            Self::MarkdownAndConfig => Self::MarkdownOnly,
+            Self::MarkdownOnly => Self::AllSupported,
+            Self::AllSupported => Self::AllFiles,
+            Self::AllFiles => Self::MarkdownAndConfig,
+        }
+    }
+}
+
 const fn default_true() -> bool {
     true
 }
@@ -230,6 +429,10 @@ pub struct AppSettings {
     #[serde(default)]
     pub sidebar_tab: SidebarTab,
 
+    /// Active file visibility filter for the sidebar file explorer.
+    #[serde(default)]
+    pub file_filter_mode: FileFilterMode,
+
     /// Automatically reload files when modified on disk.
     #[serde(default = "default_true")]
     pub auto_reload: bool,
@@ -241,6 +444,14 @@ pub struct AppSettings {
     /// Document base font size in pixels (default 16).
     #[serde(default = "default_font_size")]
     pub font_size: u32,
+
+    /// Default startup document viewing/editing mode.
+    #[serde(default)]
+    pub default_mode: DocumentMode,
+
+    /// Automatically format Markdown source (align tables, clean whitespace) on save.
+    #[serde(default = "default_true")]
+    pub format_on_save: bool,
 
     /// Optional custom font family override (e.g. "Inter", "Fira Code").
     #[serde(default)]
@@ -273,9 +484,12 @@ impl Default for AppSettings {
             zoom_level: default_zoom(),
             show_sidebar: default_true(),
             sidebar_tab: SidebarTab::Toc,
+            file_filter_mode: FileFilterMode::MarkdownAndConfig,
             auto_reload: default_true(),
             sticky_headers: false,
             font_size: default_font_size(),
+            default_mode: DocumentMode::View,
+            format_on_save: default_true(),
             font_family: None,
             recent_files: Vec::new(),
             recent_folders: Vec::new(),
@@ -441,6 +655,7 @@ mod tests {
         assert!(parsed.auto_reload);
         assert!(parsed.sticky_headers);
         assert_eq!(parsed.font_size, 16);
+        assert!(parsed.format_on_save);
     }
 
     #[test]
@@ -477,4 +692,77 @@ mod tests {
         let parsed_en: Language = serde_json::from_str("\"en\"").unwrap_or_default();
         assert_eq!(parsed_en, Language::En);
     }
+
+    #[test]
+    fn test_document_mode() {
+        assert_eq!(DocumentMode::View.as_str(), "view");
+        assert_eq!(DocumentMode::Split.as_str(), "split");
+        assert_eq!(DocumentMode::Wysiwyg.as_str(), "wysiwyg");
+        assert_eq!(DocumentMode::Source.as_str(), "source");
+
+        assert_eq!(DocumentMode::View.next(), DocumentMode::Split);
+        assert_eq!(DocumentMode::Split.next(), DocumentMode::Wysiwyg);
+        assert_eq!(DocumentMode::Wysiwyg.next(), DocumentMode::Source);
+        assert_eq!(DocumentMode::Source.next(), DocumentMode::View);
+
+        assert_eq!(DocumentMode::View.label(), "View");
+        assert_eq!(DocumentMode::Split.label(), "Split Preview");
+        assert_eq!(DocumentMode::Wysiwyg.label(), "WYSIWYG");
+        assert_eq!(DocumentMode::Source.label(), "Source");
+
+        let json_wysiwyg = serde_json::to_string(&DocumentMode::Wysiwyg).unwrap_or_default();
+        assert_eq!(json_wysiwyg, "\"wysiwyg\"");
+
+        let parsed: DocumentMode = serde_json::from_str("\"split\"").unwrap_or_default();
+        assert_eq!(parsed, DocumentMode::Split);
+    }
+
+    #[test]
+    fn test_document_format_detection_and_helpers() {
+        assert_eq!(DocumentFormat::from_extension("md"), DocumentFormat::Markdown);
+        assert_eq!(DocumentFormat::from_extension("MDX"), DocumentFormat::Mdx);
+        assert_eq!(DocumentFormat::from_extension("json"), DocumentFormat::Json);
+        assert_eq!(DocumentFormat::from_extension("toml"), DocumentFormat::Toml);
+        assert_eq!(DocumentFormat::from_extension("yaml"), DocumentFormat::Yaml);
+        assert_eq!(DocumentFormat::from_extension("yml"), DocumentFormat::Yaml);
+        assert_eq!(DocumentFormat::from_extension("ini"), DocumentFormat::Ini);
+        assert_eq!(DocumentFormat::from_extension("ron"), DocumentFormat::Ron);
+        assert_eq!(DocumentFormat::from_extension("xml"), DocumentFormat::Xml);
+        assert_eq!(DocumentFormat::from_extension("txt"), DocumentFormat::PlainText);
+
+        assert!(DocumentFormat::Json.is_config());
+        assert!(DocumentFormat::Toml.is_config());
+        assert!(DocumentFormat::Yaml.is_config());
+        assert!(!DocumentFormat::Markdown.is_config());
+        assert!(DocumentFormat::Markdown.is_markdown());
+        assert!(DocumentFormat::Mdx.is_markdown());
+        assert!(!DocumentFormat::Json.is_markdown());
+    }
+
+    #[test]
+    fn test_file_filter_mode_matching() {
+        let md_mode = FileFilterMode::MarkdownOnly;
+        assert!(md_mode.matches_extension("md"));
+        assert!(md_mode.matches_extension("mdx"));
+        assert!(!md_mode.matches_extension("json"));
+        assert!(!md_mode.matches_extension("toml"));
+
+        let config_mode = FileFilterMode::MarkdownAndConfig;
+        assert!(config_mode.matches_extension("md"));
+        assert!(config_mode.matches_extension("mdx"));
+        assert!(config_mode.matches_extension("json"));
+        assert!(config_mode.matches_extension("toml"));
+        assert!(config_mode.matches_extension("yaml"));
+        assert!(config_mode.matches_extension("yml"));
+        assert!(!config_mode.matches_extension("rs"));
+
+        let all_supported = FileFilterMode::AllSupported;
+        assert!(all_supported.matches_extension("rs"));
+        assert!(all_supported.matches_extension("js"));
+
+        let all_files = FileFilterMode::AllFiles;
+        assert!(all_files.matches_extension("anything"));
+        assert!(all_files.matches_path(&PathBuf::from("test.unknown")));
+    }
 }
+

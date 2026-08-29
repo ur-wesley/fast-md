@@ -6,7 +6,7 @@ use crate::services::settings::{
 };
 use crate::services::updater::{check_github_release, download_and_apply_update, restart_app};
 use crate::state::AppStore;
-use crate::types::{AppTheme, Language, SidebarTab, UpdateStatus};
+use crate::types::{AppTheme, DocumentMode, Language, SidebarTab, UpdateStatus};
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::ld_icons::{
@@ -286,6 +286,56 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                     if active_tab_enum == SettingsTab::Reader {
                         div {
                             class: "settings-section flex flex-col gap-5",
+
+                            // Default Document Mode
+                            div {
+                                class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                                div {
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.default_mode_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.default_mode_desc}" }
+                                }
+                                div {
+                                    class: "inline-flex bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-1",
+                                    button {
+                                        class: if store_read.settings.default_mode == DocumentMode::View { "h-7 px-2.5 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-2.5 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
+                                        onclick: move |_| store.write().set_default_mode(DocumentMode::View),
+                                        "{t.toolbar.mode_view}"
+                                    }
+                                    button {
+                                        class: if store_read.settings.default_mode == DocumentMode::Split { "h-7 px-2.5 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-2.5 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
+                                        onclick: move |_| store.write().set_default_mode(DocumentMode::Split),
+                                        "{t.toolbar.mode_split}"
+                                    }
+                                    button {
+                                        class: if store_read.settings.default_mode == DocumentMode::Wysiwyg { "h-7 px-2.5 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-2.5 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
+                                        onclick: move |_| store.write().set_default_mode(DocumentMode::Wysiwyg),
+                                        "{t.toolbar.mode_wysiwyg}"
+                                    }
+                                    button {
+                                        class: if store_read.settings.default_mode == DocumentMode::Source { "h-7 px-2.5 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-2.5 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
+                                        onclick: move |_| store.write().set_default_mode(DocumentMode::Source),
+                                        "{t.toolbar.mode_source}"
+                                    }
+                                }
+                            }
+
+                            // Format on Save
+                            div {
+                                class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                                div {
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.format_on_save_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.format_on_save_desc}" }
+                                }
+                                button {
+                                    class: if store_read.settings.format_on_save { "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[var(--accent)] transition-colors duration-200 ease-in-out focus:outline-none" } else { "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[var(--bg-subtle)] border-[var(--border-color)] transition-colors duration-200 ease-in-out focus:outline-none" },
+                                    onclick: move |_| {
+                                        store.write().toggle_format_on_save();
+                                    },
+                                    span {
+                                        class: if store_read.settings.format_on_save { "pointer-events-none inline-block h-5 w-5 translate-x-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" } else { "pointer-events-none inline-block h-5 w-5 translate-x-0 transform rounded-full bg-gray-400 shadow ring-0 transition duration-200 ease-in-out" },
+                                    }
+                                }
+                            }
 
                             // Layout Mode
                             div {

@@ -87,6 +87,9 @@ fn TabItemElement(props: TabItemElementProps) -> Element {
                 }
             }
             span { class: "tab-title truncate", "{props.tab.title}" }
+            if props.tab.is_dirty {
+                span { class: "tab-dirty-indicator w-2 h-2 rounded-full bg-[var(--accent)] shrink-0 animate-pulse", title: "Unsaved changes" }
+            }
             if props.can_close {
                 button {
                     class: "tab-close-button bg-transparent border-0 text-[var(--text-muted)] rounded w-4 h-4 flex items-center justify-center cursor-pointer hover:bg-white/10 hover:text-[var(--text-heading)] transition-colors",

@@ -15,17 +15,17 @@ A lightweight, native desktop Markdown and MDX viewer built with Dioxus 0.6 and 
 
 ## Keyboard Shortcuts
 
-| Shortcut (Win/Linux) | Shortcut (macOS) | Action |
-| :--- | :--- | :--- |
-| `Ctrl + O` | `Cmd + O` | Open file |
-| `Ctrl + F` | `Cmd + F` | Search in document |
-| `Ctrl + T` | `Cmd + T` | New tab |
-| `Ctrl + W` | `Cmd + W` | Close active tab |
-| `Ctrl + +` / `Ctrl + =` | `Cmd + +` / `Cmd + =` | Zoom in |
-| `Ctrl + -` | `Cmd + -` | Zoom out |
-| `Ctrl + 0` | `Cmd + 0` | Reset zoom |
-| `Ctrl + Shift + F` | `Cmd + Shift + F` | Toggle Zen mode |
-| `Ctrl + ,` | `Cmd + ,` | Settings |
+| Shortcut (Win/Linux)    | Shortcut (macOS)      | Action             |
+| :---------------------- | :-------------------- | :----------------- |
+| `Ctrl + O`              | `Cmd + O`             | Open file          |
+| `Ctrl + F`              | `Cmd + F`             | Search in document |
+| `Ctrl + T`              | `Cmd + T`             | New tab            |
+| `Ctrl + W`              | `Cmd + W`             | Close active tab   |
+| `Ctrl + +` / `Ctrl + =` | `Cmd + +` / `Cmd + =` | Zoom in            |
+| `Ctrl + -`              | `Cmd + -`             | Zoom out           |
+| `Ctrl + 0`              | `Cmd + 0`             | Reset zoom         |
+| `Ctrl + Shift + F`      | `Cmd + Shift + F`     | Toggle Zen mode    |
+| `Ctrl + ,`              | `Cmd + ,`             | Settings           |
 
 ## Usage
 

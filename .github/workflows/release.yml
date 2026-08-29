@@ -69,42 +69,7 @@ jobs:
           cp "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" "$STAGING/Fast-MD.app/Contents/MacOS/"
           cp "README.md" "$STAGING/"
           cp "LICENSE" "$STAGING/"
-          cat << 'EOF' > "$STAGING/Fast-MD.app/Contents/Info.plist"
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleExecutable</key>
-              <string>fast-md</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.workspacelauncher.fastmd</string>
-              <key>CFBundleName</key>
-              <string>Fast-MD</string>
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>${{ github.ref_name }}</string>
-              <key>CFBundleDocumentTypes</key>
-              <array>
-                  <dict>
-                      <key>CFBundleTypeName</key>
-                      <string>Markdown Document</string>
-                      <key>CFBundleTypeRole</key>
-                      <string>Viewer</string>
-                      <key>LSHandlerRank</key>
-                      <string>Alternate</string>
-                      <key>CFBundleTypeExtensions</key>
-                      <array>
-                          <string>md</string>
-                          <string>markdown</string>
-                          <string>mdx</string>
-                          <string>mdown</string>
-                      </array>
-                  </dict>
-              </array>
-          </dict>
-          </plist>
-          EOF
+          sed "s/APP_VERSION/${{ github.ref_name }}/g" src/assets/Info.plist > "$STAGING/Fast-MD.app/Contents/Info.plist"
           cp "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" "$STAGING/"
           tar -czvf "${{ matrix.artifact_name }}" -C "$STAGING" "Fast-MD.app" "${{ matrix.bin_name }}" "README.md" "LICENSE"
           shasum -a 256 "${{ matrix.artifact_name }}" > "${{ matrix.artifact_name }}.sha256"

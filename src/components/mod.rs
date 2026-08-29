@@ -1,3 +1,5 @@
+pub mod editor;
+pub mod editor_toolbar;
 pub mod frontmatter_card;
 pub mod settings_modal;
 pub mod sidebar;
@@ -8,6 +10,7 @@ pub mod toolbar;
 pub mod viewer;
 pub mod zen_exit_button;
 
+pub use editor::Editor;
 pub use settings_modal::SettingsModal;
 pub use sidebar::Sidebar;
 pub use status_bar::StatusBar;

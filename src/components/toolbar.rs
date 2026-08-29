@@ -1,6 +1,14 @@
-use crate::services::fs::{pick_export_html_async, pick_file_async, pick_folder_async, save_document_file};
+use crate::services::fs::{
+    pick_export_html_async, pick_file_async, pick_folder_async, pick_save_file_async,
+    save_document_file,
+};
 use crate::state::AppStore;
+use crate::types::DocumentMode;
 use dioxus::prelude::*;
+use dioxus_free_icons::Icon;
+use dioxus_free_icons::icons::ld_icons::{
+    LdBookOpen, LdColumns2, LdFileCode2, LdSave, LdSparkles,
+};
 
 const APP_STYLES: &str = include_str!("../assets/style.css");
 
@@ -14,6 +22,8 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
     let mut store = props.store;
     let store_read = store();
     let t = store_read.language.strings();
+    let current_mode = store_read.mode;
+    let is_dirty = store_read.active_tab().is_some_and(|t| t.is_dirty);
 
     rsx! {
         header {
@@ -104,6 +114,98 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
                         span { class: "btn-text", "{t.toolbar.new}" }
                     }
                 }
+
+                // Quick Save Button
+                button {
+                    class: if is_dirty {
+                        "toolbar-btn active-btn inline-flex items-center gap-1.5 h-7 px-2.5 bg-[var(--accent)]/15 border border-[var(--accent)]/40 rounded-md text-[var(--accent)] text-xs font-semibold cursor-pointer hover:bg-[var(--accent)] hover:text-white transition-all duration-150"
+                    } else {
+                        "toolbar-btn inline-flex items-center gap-1.5 h-7 px-2.5 bg-transparent border border-transparent rounded-md text-[var(--text-main)] text-xs font-medium cursor-pointer hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] transition-all duration-150"
+                    },
+                    title: "{t.toolbar.save_file}",
+                    onclick: move |_| {
+                        spawn(async move {
+                            let s = store();
+                            if let Some(active_tab) = s.active_tab() {
+                                if active_tab.path.is_some() {
+                                    let _ = store.write().save_active_tab();
+                                } else {
+                                    let title = active_tab.title.clone();
+                                    if let Some(save_path) = pick_save_file_async(&title).await {
+                                        let tab_id = active_tab.id;
+                                        let _ = store.write().save_tab_with_path(tab_id, save_path);
+                                    }
+                                }
+                            }
+                        });
+                    },
+                    Icon { width: 13, height: 13, icon: LdSave }
+                    span { class: "btn-text", "{t.toolbar.save}" }
+                    if is_dirty {
+                        span { class: "btn-indicator-dot w-1.5 h-1.5 rounded-full bg-amber-400 ml-0.5" }
+                    }
+                }
+            }
+
+            // Center Action Group: Document Mode Switcher (View | Split | WYSIWYG | Source)
+            div {
+                class: "toolbar-center-group flex items-center justify-center",
+
+                div {
+                    class: "toolbar-segmented-group inline-flex items-center bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-0.5 shadow-sm",
+
+                    // View Mode
+                    button {
+                        class: if current_mode == DocumentMode::View {
+                            "segmented-btn active-segment inline-flex items-center gap-1.5 h-6.5 px-2.5 bg-[var(--bg-surface)] rounded-md text-[var(--accent)] font-semibold text-xs transition-all shadow-sm"
+                        } else {
+                            "segmented-btn inline-flex items-center gap-1.5 h-6.5 px-2.5 bg-transparent border-0 rounded text-[var(--text-muted)] text-xs font-medium cursor-pointer hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-all"
+                        },
+                        title: "{t.toolbar.mode_view}",
+                        onclick: move |_| store.write().set_mode(DocumentMode::View),
+                        Icon { width: 13, height: 13, icon: LdBookOpen }
+                        span { "{t.toolbar.mode_view}" }
+                    }
+
+                    // Split Live Preview Mode
+                    button {
+                        class: if current_mode == DocumentMode::Split {
+                            "segmented-btn active-segment inline-flex items-center gap-1.5 h-6.5 px-2.5 bg-[var(--bg-surface)] rounded-md text-[var(--accent)] font-semibold text-xs transition-all shadow-sm"
+                        } else {
+                            "segmented-btn inline-flex items-center gap-1.5 h-6.5 px-2.5 bg-transparent border-0 rounded text-[var(--text-muted)] text-xs font-medium cursor-pointer hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-all"
+                        },
+                        title: "{t.toolbar.mode_split}",
+                        onclick: move |_| store.write().set_mode(DocumentMode::Split),
+                        Icon { width: 13, height: 13, icon: LdColumns2 }
+                        span { "{t.toolbar.mode_split}" }
+                    }
+
+                    // WYSIWYG Mode
+                    button {
+                        class: if current_mode == DocumentMode::Wysiwyg {
+                            "segmented-btn active-segment inline-flex items-center gap-1.5 h-6.5 px-2.5 bg-[var(--bg-surface)] rounded-md text-[var(--accent)] font-semibold text-xs transition-all shadow-sm"
+                        } else {
+                            "segmented-btn inline-flex items-center gap-1.5 h-6.5 px-2.5 bg-transparent border-0 rounded text-[var(--text-muted)] text-xs font-medium cursor-pointer hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-all"
+                        },
+                        title: "{t.toolbar.mode_wysiwyg}",
+                        onclick: move |_| store.write().set_mode(DocumentMode::Wysiwyg),
+                        Icon { width: 13, height: 13, icon: LdSparkles }
+                        span { "{t.toolbar.mode_wysiwyg}" }
+                    }
+
+                    // Source Mode
+                    button {
+                        class: if current_mode == DocumentMode::Source {
+                            "segmented-btn active-segment inline-flex items-center gap-1.5 h-6.5 px-2.5 bg-[var(--bg-surface)] rounded-md text-[var(--accent)] font-semibold text-xs transition-all shadow-sm"
+                        } else {
+                            "segmented-btn inline-flex items-center gap-1.5 h-6.5 px-2.5 bg-transparent border-0 rounded text-[var(--text-muted)] text-xs font-medium cursor-pointer hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-all"
+                        },
+                        title: "{t.toolbar.mode_source}",
+                        onclick: move |_| store.write().set_mode(DocumentMode::Source),
+                        Icon { width: 13, height: 13, icon: LdFileCode2 }
+                        span { "{t.toolbar.mode_source}" }
+                    }
+                }
             }
 
             // Right Group: Export, Zen Mode & Settings
@@ -192,3 +294,4 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
         }
     }
 }
+

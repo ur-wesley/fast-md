@@ -309,6 +309,196 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
         metadata,
         word_count: words,
         reading_time_minutes: reading_time,
+        format: DocumentFormat::Markdown,
+        validation_error: None,
+    }
+}
+
+/// Validate configuration syntax for JSON, TOML, YAML.
+pub fn validate_document(content: &str, format: DocumentFormat) -> Result<(), String> {
+    if content.trim().is_empty() {
+        return Ok(());
+    }
+    match format {
+        DocumentFormat::Json => {
+            serde_json::from_str::<serde_json::Value>(content)
+                .map(|_| ())
+                .map_err(|e| format!("{e}"))
+        }
+        DocumentFormat::Toml => {
+            toml::from_str::<toml::Value>(content)
+                .map(|_| ())
+                .map_err(|e| format!("{e}"))
+        }
+        DocumentFormat::Yaml => {
+            serde_yaml::from_str::<serde_yaml::Value>(content)
+                .map(|_| ())
+                .map_err(|e| format!("{e}"))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Extract structural outline/TOC for config formats (TOML sections, JSON top keys, YAML top keys).
+#[must_use]
+pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
+    let mut items = Vec::new();
+
+    match format {
+        DocumentFormat::Toml => {
+            for line in raw.lines() {
+                let trimmed = line.trim();
+                if (trimmed.starts_with('[') && trimmed.ends_with(']')) && !trimmed.starts_with("[[") {
+                    let section_name = trimmed.trim_start_matches('[').trim_end_matches(']').trim();
+                    let level = if section_name.contains('.') { 2 } else { 1 };
+                    let id = slugify(section_name);
+                    items.push(TocItem {
+                        id,
+                        title: format!("[{section_name}]"),
+                        level,
+                    });
+                } else if trimmed.starts_with("[[") && trimmed.ends_with("]]") {
+                    let section_name = trimmed.trim_start_matches('[').trim_end_matches(']').trim();
+                    let id = slugify(section_name);
+                    items.push(TocItem {
+                        id,
+                        title: format!("[[{section_name}]]"),
+                        level: 2,
+                    });
+                }
+            }
+        }
+        DocumentFormat::Json => {
+            if let Ok(serde_json::Value::Object(map)) = serde_json::from_str::<serde_json::Value>(raw) {
+                for key in map.keys() {
+                    let id = slugify(key);
+                    items.push(TocItem {
+                        id,
+                        title: format!("\"{key}\""),
+                        level: 1,
+                    });
+                }
+            } else {
+                for line in raw.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with('"') {
+                        if let Some(quote_end) = trimmed[1..].find('"') {
+                            let key = &trimmed[1..=quote_end];
+                            let rest = trimmed[quote_end + 2..].trim_start();
+                            if rest.starts_with(':') {
+                                let id = slugify(key);
+                                items.push(TocItem {
+                                    id,
+                                    title: format!("\"{key}\""),
+                                    level: 1,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        DocumentFormat::Yaml => {
+            for line in raw.lines() {
+                if !line.starts_with(' ') && !line.starts_with('\t') && !line.starts_with('#') && !line.starts_with("---") {
+                    let trimmed = line.trim();
+                    if let Some(colon_idx) = trimmed.find(':') {
+                        let key = trimmed[..colon_idx].trim();
+                        if !key.is_empty() {
+                            let id = slugify(key);
+                            items.push(TocItem {
+                                id,
+                                title: key.to_string(),
+                                level: 1,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    items
+}
+
+/// Parse configuration format into syntax-highlighted HTML document with outline and validation status.
+#[must_use]
+pub fn parse_config_document(raw: &str, format: DocumentFormat) -> ParsedDocument {
+    let validation_error = validate_document(raw, format).err();
+    let toc = extract_config_toc(raw, format);
+
+    let syntax_set = get_syntax_set();
+    let theme_set = get_theme_set();
+    let theme = theme_set
+        .themes
+        .get("base16-ocean.dark")
+        .or_else(|| theme_set.themes.get("InspiredGitHub"))
+        .or_else(|| theme_set.themes.values().next());
+
+    let token = format.syntax_token();
+    let syntax = syntax_set
+        .find_syntax_by_token(token)
+        .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
+
+    let highlighted_html = theme.map_or_else(
+        || format!("<pre><code>{}</code></pre>", html_escape(raw)),
+        |th| highlighted_html_for_string(raw, syntax_set, syntax, th)
+            .unwrap_or_else(|_| format!("<pre><code>{}</code></pre>", html_escape(raw))),
+    );
+
+    let escaped_code = html_escape(raw);
+    let lang_label = format.label();
+
+    let validation_badge_html = if let Some(ref err) = validation_error {
+        format!("<div class=\"config-syntax-error-banner\"><span class=\"error-icon\">⚠️</span> <span class=\"error-text\">Syntax Error: {}</span></div>", html_escape(err))
+    } else {
+        String::new()
+    };
+
+    let wrapped_html = format!(
+        "<div class=\"config-doc-container format-{token}\">\
+            {validation_badge_html}\
+            <div class=\"code-block-container config-code-block\">\
+                <div class=\"code-header\">\
+                    <div class=\"flex items-center gap-2\">\
+                        <span class=\"code-lang-label\">{lang_label}</span>\
+                        <span class=\"config-status-tag\">{status_text}</span>\
+                    </div>\
+                    <button class=\"copy-code-button\" data-code=\"{escaped_code}\" onclick=\"copyCodeSnippet(this)\">\
+                        <svg class=\"copy-icon\" viewBox=\"0 0 24 24\" width=\"14\" height=\"14\"><rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>\
+                        <span>Copy</span>\
+                    </button>\
+                </div>\
+                <div class=\"code-content\">{highlighted_html}</div>\
+            </div>\
+        </div>",
+        status_text = if validation_error.is_some() { "⚠️ Invalid Syntax" } else { "✓ Valid Config" }
+    );
+
+    let words = raw.split_whitespace().count();
+    let reading_time = words.div_ceil(200).max(1);
+
+    ParsedDocument {
+        html_content: wrapped_html,
+        toc,
+        metadata: None,
+        word_count: words,
+        reading_time_minutes: reading_time,
+        format,
+        validation_error,
+    }
+}
+
+/// Parse document according to its format (Markdown or Config format).
+#[must_use]
+pub fn parse_document(raw: &str, format: DocumentFormat) -> ParsedDocument {
+    if format.is_markdown() {
+        let mut doc = parse_markdown_document(raw);
+        doc.format = format;
+        doc
+    } else {
+        parse_config_document(raw, format)
     }
 }
 
@@ -372,6 +562,44 @@ mod tests {
         assert!(doc.html_content.contains("<section class=\"markdown-section markdown-section-h2\">"));
         assert!(doc.html_content.contains("code-block-container"));
         assert!(doc.word_count > 0);
+    }
+
+    #[test]
+    fn test_parse_json_document_and_toc() {
+        let json_raw = r#"{
+            "name": "fast-md",
+            "version": "0.1.2",
+            "dependencies": {
+                "dioxus": "0.6"
+            }
+        }"#;
+        let doc = parse_document(json_raw, DocumentFormat::Json);
+        assert_eq!(doc.format, DocumentFormat::Json);
+        assert!(doc.validation_error.is_none());
+        assert!(!doc.toc.is_empty());
+        assert!(doc.toc.iter().any(|t| t.title.contains("name")));
+        assert!(doc.html_content.contains("config-doc-container"));
+        assert!(doc.html_content.contains("JSON"));
+    }
+
+    #[test]
+    fn test_parse_toml_document_and_toc() {
+        let toml_raw = "[package]\nname = \"fast-md\"\nversion = \"0.1.2\"\n\n[dependencies]\ndioxus = \"0.6\"\n";
+        let doc = parse_document(toml_raw, DocumentFormat::Toml);
+        assert_eq!(doc.format, DocumentFormat::Toml);
+        assert!(doc.validation_error.is_none());
+        assert_eq!(doc.toc.len(), 2);
+        assert_eq!(doc.toc[0].title, "[package]");
+        assert_eq!(doc.toc[1].title, "[dependencies]");
+        assert!(doc.html_content.contains("TOML"));
+    }
+
+    #[test]
+    fn test_parse_yaml_document_and_validation_error() {
+        let invalid_yaml = "key: [unclosed array\nanother: 123";
+        let doc = parse_document(invalid_yaml, DocumentFormat::Yaml);
+        assert!(doc.validation_error.is_some());
+        assert!(doc.html_content.contains("config-syntax-error-banner"));
     }
 }
 
