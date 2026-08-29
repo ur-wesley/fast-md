@@ -106,27 +106,30 @@ mod win_impl {
             set_value_str(&key, Some("FriendlyAppName"), APP_NAME);
         }
 
-        // 2. Register Application entry: HKCU\Software\Classes\Applications\fast-md.exe
+        // 2. Register Application entries: HKCU\Software\Classes\Applications\fmd.exe & fast-md.exe
         let app_exe_name = exe_path
             .file_name()
-            .map_or_else(|| "fast-md.exe".to_string(), |n| n.to_string_lossy().to_string());
-        let app_key_path = format!("Software\\Classes\\Applications\\{app_exe_name}");
-        if let Some(key) = create_key(HKEY_CURRENT_USER, &app_key_path) {
-            set_value_str(&key, Some("FriendlyAppName"), APP_NAME);
-        }
-        if let Some(key) = create_key(HKEY_CURRENT_USER, &format!("{app_key_path}\\DefaultIcon")) {
-            set_value_str(&key, None, &icon_str);
-        }
-        if let Some(key) =
-            create_key(HKEY_CURRENT_USER, &format!("{app_key_path}\\shell\\open\\command"))
-        {
-            set_value_str(&key, None, &open_command);
-        }
-        if let Some(key) =
-            create_key(HKEY_CURRENT_USER, &format!("{app_key_path}\\SupportedTypes"))
-        {
-            for ext in SUPPORTED_EXTS {
-                set_value_str(&key, Some(ext), "");
+            .map_or_else(|| "fmd.exe".to_string(), |n| n.to_string_lossy().to_string());
+        let app_names = ["fmd.exe", "fast-md.exe", &app_exe_name];
+        for name in &app_names {
+            let app_key_path = format!("Software\\Classes\\Applications\\{name}");
+            if let Some(key) = create_key(HKEY_CURRENT_USER, &app_key_path) {
+                set_value_str(&key, Some("FriendlyAppName"), APP_NAME);
+            }
+            if let Some(key) = create_key(HKEY_CURRENT_USER, &format!("{app_key_path}\\DefaultIcon")) {
+                set_value_str(&key, None, &icon_str);
+            }
+            if let Some(key) =
+                create_key(HKEY_CURRENT_USER, &format!("{app_key_path}\\shell\\open\\command"))
+            {
+                set_value_str(&key, None, &open_command);
+            }
+            if let Some(key) =
+                create_key(HKEY_CURRENT_USER, &format!("{app_key_path}\\SupportedTypes"))
+            {
+                for ext in SUPPORTED_EXTS {
+                    set_value_str(&key, Some(ext), "");
+                }
             }
         }
 
@@ -137,15 +140,31 @@ mod win_impl {
             {
                 set_value_str(&key, Some(PROG_ID), "");
             }
-            if let Some(key) = create_key(
-                HKEY_CURRENT_USER,
-                &format!("Software\\Classes\\{ext}\\OpenWithList\\{app_exe_name}"),
-            ) {
-                set_value_str(&key, None, "");
+            for name in &app_names {
+                if let Some(key) = create_key(
+                    HKEY_CURRENT_USER,
+                    &format!("Software\\Classes\\{ext}\\OpenWithList\\{name}"),
+                ) {
+                    set_value_str(&key, None, "");
+                }
             }
         }
 
-        // 4. Register Capabilities for Windows Default Apps settings
+        // 4. Register Windows App Paths so `fmd` and `fast-md` are directly callable from CMD / PowerShell / Run Dialog
+        let exe_dir = exe_path
+            .parent()
+            .map_or_else(String::new, |p| p.to_string_lossy().to_string());
+        for app_bin in &["fmd.exe", "fast-md.exe"] {
+            let app_path_key = format!("Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{app_bin}");
+            if let Some(key) = create_key(HKEY_CURRENT_USER, &app_path_key) {
+                set_value_str(&key, None, &exe_str);
+                if !exe_dir.is_empty() {
+                    set_value_str(&key, Some("Path"), &exe_dir);
+                }
+            }
+        }
+
+        // 5. Register Capabilities for Windows Default Apps settings
         if let Some(key) = create_key(HKEY_CURRENT_USER, "Software\\FastMD\\Capabilities") {
             set_value_str(&key, Some("ApplicationName"), APP_NAME);
             set_value_str(&key, Some("ApplicationDescription"), APP_DESC);
@@ -162,7 +181,7 @@ mod win_impl {
             set_value_str(&key, Some("FastMD"), "Software\\FastMD\\Capabilities");
         }
 
-        // 5. Notify Windows Shell of association change
+        // 6. Notify Windows Shell of association change
         unsafe {
             SHChangeNotify(SHCNE_ASSOCCHANGED.cast_signed(), SHCNF_IDLIST, ptr::null(), ptr::null());
         }
@@ -174,7 +193,10 @@ mod win_impl {
     #[must_use]
     pub fn unregister_associations() -> bool {
         let _ = delete_tree(HKEY_CURRENT_USER, "Software\\Classes\\FastMD.Document");
+        let _ = delete_tree(HKEY_CURRENT_USER, "Software\\Classes\\Applications\\fmd.exe");
         let _ = delete_tree(HKEY_CURRENT_USER, "Software\\Classes\\Applications\\fast-md.exe");
+        let _ = delete_tree(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\fmd.exe");
+        let _ = delete_tree(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\fast-md.exe");
         let _ = delete_tree(HKEY_CURRENT_USER, "Software\\FastMD");
 
         for ext in SUPPORTED_EXTS {

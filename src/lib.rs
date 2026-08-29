@@ -1,9 +1,9 @@
-mod cli;
-mod components;
-mod i18n;
-mod services;
-mod state;
-mod types;
+pub mod cli;
+pub mod components;
+pub mod i18n;
+pub mod services;
+pub mod state;
+pub mod types;
 
 use cli::CliArgs;
 use components::{
@@ -1270,26 +1270,27 @@ window.serializeWysiwygToMarkdown = function() {
 })();
 "#;
 
+#[allow(clippy::single_option_map)]
 fn resolve_cli_path(raw_path: Option<&PathBuf>) -> Option<PathBuf> {
-    raw_path.and_then(|p| {
+    raw_path.map(|p| {
         if p.is_absolute() && p.exists() {
-            Some(p.clone())
+            p.clone()
         } else if let Ok(current_dir) = env::current_dir() {
             let combined = current_dir.join(p);
             if combined.exists() {
-                Some(combined)
+                combined
             } else if p.exists() {
-                Some(p.clone())
+                p.clone()
             } else {
-                None
+                combined
             }
         } else {
-            None
+            p.clone()
         }
     })
 }
 
-fn main() {
+pub fn run() {
     let args = CliArgs::parse_safe();
 
     if args.register {

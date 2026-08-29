@@ -27,17 +27,36 @@ A lightweight, native desktop Markdown and MDX viewer built with Dioxus 0.6 and 
 | `Ctrl + Shift + F`      | `Cmd + Shift + F`     | Toggle Zen mode    |
 | `Ctrl + ,`              | `Cmd + ,`             | Settings           |
 
-## Usage
+## Usage & CLI
+
+Fast-MD provides the `fmd` CLI command to open files or folders instantly from your terminal:
 
 ```bash
-# Run with welcome guide
-cargo run
+# Open a markdown file
+fmd readme.md
+fmd path/to/document.md
 
-# Open a specific file or directory
-cargo run -- path/to/doc.md
-cargo run -- path/to/folder/
+# Open an entire folder / project
+fmd c:/arbeit
+fmd .
 
-# Build release binary
+# Open in distraction-free Zen mode
+fmd --zen readme.md
+
+# Open with custom theme override (dark, midnight, light, nord, solarized, mocha, macchiato, frappe, latte)
+fmd --theme mocha readme.md
+
+# View help and options
+fmd --help
+```
+
+### Building & Installing
+
+```bash
+# Install binary globally to cargo bin
+cargo install --path .
+
+# Build release binaries (target/release/fmd.exe and fast-md.exe)
 cargo build --release
 ```
 

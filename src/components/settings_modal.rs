@@ -521,6 +521,38 @@ pub fn SettingsModal(props: SettingsModalProps) -> Element {
                                 }
                             }
 
+                            // Default File Visibility Filter Mode
+                            div {
+                                class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                                div {
+                                    h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.file_filter_mode_title}" }
+                                    p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.file_filter_mode_desc}" }
+                                }
+                                div {
+                                    class: "inline-flex bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-1",
+                                    button {
+                                        class: if store_read.file_filter_mode == crate::types::FileFilterMode::MarkdownOnly { "h-7 px-2.5 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-2.5 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
+                                        onclick: move |_| store.write().set_file_filter_mode(crate::types::FileFilterMode::MarkdownOnly),
+                                        "MD(X)"
+                                    }
+                                    button {
+                                        class: if store_read.file_filter_mode == crate::types::FileFilterMode::MarkdownAndConfig { "h-7 px-2.5 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-2.5 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
+                                        onclick: move |_| store.write().set_file_filter_mode(crate::types::FileFilterMode::MarkdownAndConfig),
+                                        "+ Config"
+                                    }
+                                    button {
+                                        class: if store_read.file_filter_mode == crate::types::FileFilterMode::AllSupported { "h-7 px-2.5 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-2.5 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
+                                        onclick: move |_| store.write().set_file_filter_mode(crate::types::FileFilterMode::AllSupported),
+                                        "Supported"
+                                    }
+                                    button {
+                                        class: if store_read.file_filter_mode == crate::types::FileFilterMode::AllFiles { "h-7 px-2.5 rounded-md bg-[var(--bg-surface)] text-[var(--accent)] font-semibold text-xs border-0 cursor-pointer shadow-sm" } else { "h-7 px-2.5 rounded-md bg-transparent text-[var(--text-muted)] text-xs border-0 cursor-pointer hover:text-[var(--text-heading)]" },
+                                        onclick: move |_| store.write().set_file_filter_mode(crate::types::FileFilterMode::AllFiles),
+                                        "All"
+                                    }
+                                }
+                            }
+
                             // Recent History Summary
                             div {
                                 class: "p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl flex flex-col gap-2",

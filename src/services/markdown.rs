@@ -1,4 +1,4 @@
-use crate::types::{DocMetadata, ParsedDocument, TocItem};
+use crate::types::{DocMetadata, DocumentFormat, ParsedDocument, TocItem};
 use pulldown_cmark::{html, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use std::collections::BTreeMap;
 use std::fmt::Write as FmtWrite;
@@ -381,10 +381,10 @@ pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
             } else {
                 for line in raw.lines() {
                     let trimmed = line.trim();
-                    if trimmed.starts_with('"') {
-                        if let Some(quote_end) = trimmed[1..].find('"') {
-                            let key = &trimmed[1..=quote_end];
-                            let rest = trimmed[quote_end + 2..].trim_start();
+                    if let Some(stripped) = trimmed.strip_prefix('"') {
+                        if let Some(quote_end) = stripped.find('"') {
+                            let key = &stripped[..quote_end];
+                            let rest = stripped[quote_end + 1..].trim_start();
                             if rest.starts_with(':') {
                                 let id = slugify(key);
                                 items.push(TocItem {
@@ -400,15 +400,16 @@ pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
         }
         DocumentFormat::Yaml => {
             for line in raw.lines() {
-                if !line.starts_with(' ') && !line.starts_with('\t') && !line.starts_with('#') && !line.starts_with("---") {
-                    let trimmed = line.trim();
-                    if let Some(colon_idx) = trimmed.find(':') {
-                        let key = trimmed[..colon_idx].trim();
-                        if !key.is_empty() {
-                            let id = slugify(key);
+                let trimmed = line.trim_end();
+                // Match top-level keys: `key:` or `- item:`
+                if !trimmed.starts_with(' ') && !trimmed.starts_with('\t') && trimmed.contains(':') && !trimmed.starts_with('#') {
+                    if let Some((k, _)) = trimmed.split_once(':') {
+                        let clean_k = k.trim();
+                        if !clean_k.is_empty() {
+                            let id = slugify(clean_k);
                             items.push(TocItem {
                                 id,
-                                title: key.to_string(),
+                                title: clean_k.to_string(),
                                 level: 1,
                             });
                         }
@@ -422,26 +423,18 @@ pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
     items
 }
 
-/// Parse configuration format into syntax-highlighted HTML document with outline and validation status.
+/// Parse and render config documents (JSON, TOML, YAML, INI, etc.) into syntax-highlighted HTML views.
 #[must_use]
 pub fn parse_config_document(raw: &str, format: DocumentFormat) -> ParsedDocument {
-    let validation_error = validate_document(raw, format).err();
-    let toc = extract_config_toc(raw, format);
-
     let syntax_set = get_syntax_set();
     let theme_set = get_theme_set();
-    let theme = theme_set
-        .themes
-        .get("base16-ocean.dark")
-        .or_else(|| theme_set.themes.get("InspiredGitHub"))
-        .or_else(|| theme_set.themes.values().next());
 
-    let token = format.syntax_token();
-    let syntax = syntax_set
-        .find_syntax_by_token(token)
+    let syntax_token = format.syntax_token();
+    let syntax = syntax_set.find_syntax_by_token(syntax_token)
         .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
 
-    let highlighted_html = theme.map_or_else(
+    // Highlight code using default Dark theme if available, otherwise plain pre/code
+    let highlighted_code = theme_set.themes.get("base16-ocean.dark").map_or_else(
         || format!("<pre><code>{}</code></pre>", html_escape(raw)),
         |th| highlighted_html_for_string(raw, syntax_set, syntax, th)
             .unwrap_or_else(|_| format!("<pre><code>{}</code></pre>", html_escape(raw))),
@@ -449,12 +442,14 @@ pub fn parse_config_document(raw: &str, format: DocumentFormat) -> ParsedDocumen
 
     let escaped_code = html_escape(raw);
     let lang_label = format.label();
+    let token = format.syntax_token();
 
-    let validation_badge_html = if let Some(ref err) = validation_error {
+    let validation_error = validate_document(raw, format).err();
+    let validation_badge_html = validation_error.as_ref().map_or_else(String::new, |err| {
         format!("<div class=\"config-syntax-error-banner\"><span class=\"error-icon\">⚠️</span> <span class=\"error-text\">Syntax Error: {}</span></div>", html_escape(err))
-    } else {
-        String::new()
-    };
+    });
+
+    let toc = extract_config_toc(raw, format);
 
     let wrapped_html = format!(
         "<div class=\"config-doc-container format-{token}\">\
@@ -470,7 +465,7 @@ pub fn parse_config_document(raw: &str, format: DocumentFormat) -> ParsedDocumen
                         <span>Copy</span>\
                     </button>\
                 </div>\
-                <div class=\"code-content\">{highlighted_html}</div>\
+                <div class=\"code-content\">{highlighted_code}</div>\
             </div>\
         </div>",
         status_text = if validation_error.is_some() { "⚠️ Invalid Syntax" } else { "✓ Valid Config" }

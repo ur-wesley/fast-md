@@ -87,6 +87,15 @@ pub struct EditorTranslations {
     pub table: &'static str,
     pub callout: &'static str,
     pub format_document: &'static str,
+    pub format_config: &'static str,
+    pub insert_json_object: &'static str,
+    pub insert_json_array: &'static str,
+    pub insert_json_kv: &'static str,
+    pub insert_toml_section: &'static str,
+    pub insert_yaml_kv: &'static str,
+    pub insert_yaml_list: &'static str,
+    pub valid_syntax: &'static str,
+    pub invalid_syntax: &'static str,
     pub undo: &'static str,
     pub redo: &'static str,
     pub wysiwyg_placeholder: &'static str,
@@ -99,8 +108,16 @@ pub struct SidebarTranslations {
     pub files: &'static str,
     pub no_headings: &'static str,
     pub filter_files: &'static str,
+    pub filter_tooltip: &'static str,
+    pub filter_md_only: &'static str,
+    pub filter_md_config: &'static str,
+    pub filter_all_supported: &'static str,
+    pub filter_all_files: &'static str,
     pub no_folder_opened: &'static str,
     pub open_folder_hint: &'static str,
+    pub loading_folder: &'static str,
+    pub scanning_files: &'static str,
+    pub open_folder_button: &'static str,
     pub reading_progress: &'static str,
 }
 
@@ -212,6 +229,8 @@ pub struct SettingsTranslations {
     pub sidebar_tab_files: &'static str,
     pub sidebar_visibility_title: &'static str,
     pub sidebar_visibility_desc: &'static str,
+    pub file_filter_mode_title: &'static str,
+    pub file_filter_mode_desc: &'static str,
     pub recent_history_title: &'static str,
     pub recent_history_desc: &'static str,
     pub files_label: &'static str,
@@ -291,6 +310,12 @@ mod tests {
         // Verify sidebar
         assert!(!en.sidebar.outline.is_empty());
         assert!(!de.sidebar.outline.is_empty());
+        assert!(!en.sidebar.loading_folder.is_empty());
+        assert!(!de.sidebar.loading_folder.is_empty());
+        assert!(!en.sidebar.scanning_files.is_empty());
+        assert!(!de.sidebar.scanning_files.is_empty());
+        assert!(!en.sidebar.open_folder_button.is_empty());
+        assert!(!de.sidebar.open_folder_button.is_empty());
         assert!(!en.sidebar.reading_progress.is_empty());
         assert!(!de.sidebar.reading_progress.is_empty());
 

@@ -75,7 +75,7 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                 div {
                     class: "sidebar-files-container flex-1 overflow-y-auto p-2 flex flex-col gap-2",
                     div {
-                        class: "file-search-box px-0.5",
+                        class: "file-search-box flex flex-col gap-1.5 px-0.5",
                         div {
                             class: "flex items-center w-full h-7 bg-[var(--bg-app)] border border-[var(--border-color)] rounded px-2 gap-1.5 focus-within:border-[var(--accent)] transition-colors",
                             Icon { width: 12, height: 12, icon: LdSearch, class: "text-[var(--text-muted)] shrink-0" }
@@ -85,6 +85,51 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                                 placeholder: "{t.sidebar.filter_files}",
                                 value: "{file_search_query}",
                                 oninput: move |evt| file_search_query.set(evt.value()),
+                            }
+                        }
+
+                        // File Visibility Filter Pills Bar
+                        div {
+                            class: "file-filter-pills flex items-center bg-[var(--bg-app)] border border-[var(--border-color)] rounded p-0.5 gap-0.5 text-[10.5px] font-medium select-none shadow-sm",
+                            button {
+                                class: if store_read.file_filter_mode == crate::types::FileFilterMode::MarkdownOnly {
+                                    "flex-1 h-5 rounded bg-[var(--bg-surface)] text-[var(--accent)] font-semibold border-0 cursor-pointer text-center truncate shadow-sm transition-all"
+                                } else {
+                                    "flex-1 h-5 rounded bg-transparent text-[var(--text-muted)] border-0 cursor-pointer text-center truncate hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-all"
+                                },
+                                title: "{t.sidebar.filter_md_only}",
+                                onclick: move |_| store.write().set_file_filter_mode(crate::types::FileFilterMode::MarkdownOnly),
+                                "MD(X)"
+                            }
+                            button {
+                                class: if store_read.file_filter_mode == crate::types::FileFilterMode::MarkdownAndConfig {
+                                    "flex-1 h-5 rounded bg-[var(--bg-surface)] text-[var(--accent)] font-semibold border-0 cursor-pointer text-center truncate shadow-sm transition-all"
+                                } else {
+                                    "flex-1 h-5 rounded bg-transparent text-[var(--text-muted)] border-0 cursor-pointer text-center truncate hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-all"
+                                },
+                                title: "{t.sidebar.filter_md_config}",
+                                onclick: move |_| store.write().set_file_filter_mode(crate::types::FileFilterMode::MarkdownAndConfig),
+                                "+ Config"
+                            }
+                            button {
+                                class: if store_read.file_filter_mode == crate::types::FileFilterMode::AllSupported {
+                                    "flex-1 h-5 rounded bg-[var(--bg-surface)] text-[var(--accent)] font-semibold border-0 cursor-pointer text-center truncate shadow-sm transition-all"
+                                } else {
+                                    "flex-1 h-5 rounded bg-transparent text-[var(--text-muted)] border-0 cursor-pointer text-center truncate hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-all"
+                                },
+                                title: "{t.sidebar.filter_all_supported}",
+                                onclick: move |_| store.write().set_file_filter_mode(crate::types::FileFilterMode::AllSupported),
+                                "Supported"
+                            }
+                            button {
+                                class: if store_read.file_filter_mode == crate::types::FileFilterMode::AllFiles {
+                                    "flex-1 h-5 rounded bg-[var(--bg-surface)] text-[var(--accent)] font-semibold border-0 cursor-pointer text-center truncate shadow-sm transition-all"
+                                } else {
+                                    "flex-1 h-5 rounded bg-transparent text-[var(--text-muted)] border-0 cursor-pointer text-center truncate hover:text-[var(--text-heading)] hover:bg-[var(--bg-hover)] transition-all"
+                                },
+                                title: "{t.sidebar.filter_all_files}",
+                                onclick: move |_| store.write().set_file_filter_mode(crate::types::FileFilterMode::AllFiles),
+                                "All"
                             }
                         }
                     }
@@ -102,6 +147,7 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                                 FileTreeItem {
                                     entry: entry.clone(),
                                     query: file_search_query(),
+                                    active_path: store_read.active_tab().and_then(|t| t.path.clone()),
                                     on_select: move |path| {
                                         store.write().open_file_from_path(path);
                                     },
@@ -169,6 +215,7 @@ fn TocItemLink(props: TocItemLinkProps) -> Element {
 struct FileTreeItemProps {
     entry: FileTreeEntry,
     query: String,
+    active_path: Option<PathBuf>,
     on_select: EventHandler<PathBuf>,
 }
 
@@ -219,6 +266,7 @@ fn FileTreeItem(props: FileTreeItemProps) -> Element {
                             FileTreeItem {
                                 entry: child.clone(),
                                 query: props.query.clone(),
+                                active_path: props.active_path.clone(),
                                 on_select: props.on_select,
                             }
                         }
@@ -228,23 +276,51 @@ fn FileTreeItem(props: FileTreeItemProps) -> Element {
         }
     } else {
         let path_clone = entry.path.clone();
-        let is_code = entry.path.extension().and_then(|e| e.to_str()).is_some_and(|ext| {
-            matches!(ext.to_ascii_lowercase().as_str(), "mdx" | "rs" | "js" | "ts" | "json" | "toml" | "yaml" | "yml")
-        });
+        let is_active = props.active_path.as_ref() == Some(&entry.path);
+        let ext = entry.path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+        let format_label = match ext.as_str() {
+            "json" | "jsonc" => Some("JSON"),
+            "toml" => Some("TOML"),
+            "yaml" | "yml" => Some("YAML"),
+            "mdx" => Some("MDX"),
+            "ini" => Some("INI"),
+            "ron" => Some("RON"),
+            "xml" => Some("XML"),
+            _ => None,
+        };
+
+        let is_code = matches!(ext.as_str(), "mdx" | "rs" | "js" | "ts" | "json" | "jsonc" | "toml" | "yaml" | "yml" | "ini" | "ron" | "xml");
 
         rsx! {
             div {
-                class: "file-tree-file flex items-center gap-1.5 py-1 px-2 rounded text-xs cursor-pointer text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] transition-colors duration-150 pl-5",
+                class: if is_active {
+                    "file-tree-file flex items-center justify-between gap-1.5 py-1 px-2 rounded text-xs cursor-pointer bg-[var(--bg-hover)] text-[var(--accent)] font-semibold transition-colors duration-150 pl-5 border-l-2 border-[var(--accent)]"
+                } else {
+                    "file-tree-file flex items-center justify-between gap-1.5 py-1 px-2 rounded text-xs cursor-pointer text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] transition-colors duration-150 pl-5"
+                },
                 onclick: move |_| props.on_select.call(path_clone.clone()),
-                span {
-                    class: "file-icon shrink-0 flex items-center text-[var(--text-muted)]",
-                    if is_code {
-                        Icon { width: 13, height: 13, icon: LdFileCode2 }
-                    } else {
-                        Icon { width: 13, height: 13, icon: LdFileText }
+                div {
+                    class: "flex items-center gap-1.5 min-w-0 flex-1",
+                    span {
+                        class: if is_active {
+                            "file-icon shrink-0 flex items-center text-[var(--accent)]"
+                        } else {
+                            "file-icon shrink-0 flex items-center text-[var(--text-muted)]"
+                        },
+                        if is_code {
+                            Icon { width: 13, height: 13, icon: LdFileCode2 }
+                        } else {
+                            Icon { width: 13, height: 13, icon: LdFileText }
+                        }
+                    }
+                    span { class: "file-name truncate", "{entry.name}" }
+                }
+                if let Some(lbl) = format_label {
+                    span {
+                        class: "file-format-badge text-[9px] px-1 py-0.2 rounded bg-[var(--bg-app)] border border-[var(--border-color)] text-[var(--text-muted)] font-mono opacity-80 shrink-0",
+                        "{lbl}"
                     }
                 }
-                span { class: "file-name truncate", "{entry.name}" }
             }
         }
     }

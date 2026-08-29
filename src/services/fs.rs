@@ -62,6 +62,7 @@ pub fn scan_file_tree(dir: &Path, filter_mode: FileFilterMode) -> Result<Vec<Fil
 }
 
 /// Backward-compatible alias for scanning markdown and config tree.
+#[allow(dead_code)]
 pub fn scan_markdown_tree(dir: &Path) -> Result<Vec<FileTreeEntry>> {
     scan_file_tree(dir, FileFilterMode::MarkdownAndConfig)
 }

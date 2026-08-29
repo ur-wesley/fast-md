@@ -3,9 +3,16 @@ use std::path::PathBuf;
 
 /// Lightning-fast native desktop Markdown & MDX viewer built with Dioxus.
 #[derive(Parser, Debug, Clone)]
-#[command(name = "fast-md", author, version, about, long_about = None)]
+#[command(
+    name = "fmd",
+    alias = "fast-md",
+    author,
+    version,
+    about = "Lightning-fast native desktop Markdown & MDX viewer",
+    long_about = "Fast-MD (fmd): Lightning-fast native desktop Markdown & MDX viewer.\nUsage examples:\n  fmd readme.md\n  fmd c:/arbeit\n  fmd . --zen\n  fmd --theme mocha docs/guide.md"
+)]
 pub struct CliArgs {
-    /// Path to a markdown file or directory to open on startup.
+    /// Path to a markdown file or directory to open on startup (e.g. `fmd readme.md` or `fmd c:/arbeit`).
     #[arg(value_name = "PATH")]
     pub path: Option<PathBuf>,
 

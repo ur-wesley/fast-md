@@ -73,8 +73,7 @@ impl DocumentFormat {
     #[must_use]
     pub const fn syntax_token(self) -> &'static str {
         match self {
-            Self::Markdown => "markdown",
-            Self::Mdx => "markdown",
+            Self::Markdown | Self::Mdx => "markdown",
             Self::Json => "json",
             Self::Toml => "toml",
             Self::Yaml => "yaml",
@@ -355,6 +354,7 @@ impl FileFilterMode {
     }
 
     #[must_use]
+    #[allow(dead_code)]
     pub const fn label(self) -> &'static str {
         match self {
             Self::MarkdownOnly => "MD / MDX",
@@ -365,6 +365,7 @@ impl FileFilterMode {
     }
 
     #[must_use]
+    #[allow(dead_code)]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::MarkdownOnly => "md",
@@ -375,6 +376,7 @@ impl FileFilterMode {
     }
 
     #[must_use]
+    #[allow(dead_code)]
     pub const fn next(self) -> Self {
         match self {
             Self::MarkdownAndConfig => Self::MarkdownOnly,

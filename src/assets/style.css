@@ -2055,4 +2055,62 @@ html, body {
     box-shadow: 0 0 6px var(--accent);
 }
 
+/* ================= Config Document Viewer & Diagnostics ================= */
+.config-doc-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.config-syntax-error-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background-color: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #f87171;
+    font-size: 12.5px;
+    font-family: var(--font-mono, monospace);
+    font-weight: 500;
+    line-height: 1.4;
+    word-break: break-all;
+}
+
+.config-syntax-error-banner .error-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.config-code-block {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background-color: var(--code-bg, var(--bg-surface));
+}
+
+.config-status-tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background-color: var(--bg-subtle);
+    color: var(--text-muted);
+}
+
+/* File Tree Item active styling & badges */
+.file-tree-file {
+    user-select: none;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.file-format-badge {
+    font-size: 9px;
+    line-height: 1;
+    letter-spacing: 0.5px;
+}
+
+
 

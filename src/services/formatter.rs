@@ -24,7 +24,8 @@ pub fn format_json(source: &str) -> Result<String, String> {
     Ok(formatted)
 }
 
-/// Minify / compact JSON document.
+/// Minify a JSON string.
+#[allow(dead_code)]
 pub fn minify_json(source: &str) -> Result<String, String> {
     if source.trim().is_empty() {
         return Ok(String::new());
@@ -370,6 +371,7 @@ pub fn format_markdown(source: &str) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
 
@@ -428,29 +430,41 @@ Paragraph text.
     #[test]
     fn test_format_json() {
         let raw = r#"{"name":"fast-md","version":"0.1.2","dependencies":{"dioxus":"0.6"}}"#;
-        let formatted = format_json(raw).unwrap();
-        assert!(formatted.contains("  \"name\": \"fast-md\""));
-        assert!(formatted.contains("  \"dependencies\": {"));
-        assert!(formatted.ends_with('\n'));
+        if let Ok(formatted) = format_json(raw) {
+            assert!(formatted.contains("  \"name\": \"fast-md\""));
+            assert!(formatted.contains("  \"dependencies\": {"));
+            assert!(formatted.ends_with('\n'));
 
-        let minified = minify_json(&formatted).unwrap();
-        assert_eq!(minified, r#"{"dependencies":{"dioxus":"0.6"},"name":"fast-md","version":"0.1.2"}"#);
+            if let Ok(minified) = minify_json(&formatted) {
+                assert_eq!(minified, r#"{"dependencies":{"dioxus":"0.6"},"name":"fast-md","version":"0.1.2"}"#);
+            } else {
+                panic!("failed to minify json");
+            }
+        } else {
+            panic!("failed to format json");
+        }
     }
 
     #[test]
     fn test_format_toml() {
         let raw = "[package]\nname=\"fast-md\"\nversion=\"0.1.2\"\n";
-        let formatted = format_toml(raw).unwrap();
-        assert!(formatted.contains("[package]"));
-        assert!(formatted.contains("name = \"fast-md\""));
-        assert!(formatted.contains("version = \"0.1.2\""));
+        if let Ok(formatted) = format_toml(raw) {
+            assert!(formatted.contains("[package]"));
+            assert!(formatted.contains("name = \"fast-md\""));
+            assert!(formatted.contains("version = \"0.1.2\""));
+        } else {
+            panic!("failed to format toml");
+        }
     }
 
     #[test]
     fn test_format_yaml() {
         let raw = "name: fast-md\nversion: '0.1.2'\nfeatures:\n- desktop\n- syntect\n";
-        let formatted = format_yaml(raw).unwrap();
-        assert!(formatted.contains("name: fast-md"));
-        assert!(formatted.contains("- desktop"));
+        if let Ok(formatted) = format_yaml(raw) {
+            assert!(formatted.contains("name: fast-md"));
+            assert!(formatted.contains("- desktop"));
+        } else {
+            panic!("failed to format yaml");
+        }
     }
 }

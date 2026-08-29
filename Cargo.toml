@@ -7,6 +7,7 @@ description = "Lightning-fast native desktop Markdown & MDX viewer built with Di
 license = "MIT"
 readme = "README.md"
 
+
 [dependencies]
 dioxus = { version = "0.6", features = ["desktop"] }
 dioxus-free-icons = { version = "0.9", features = ["lucide"] }
@@ -47,6 +48,8 @@ raw-window-handle = "0.6"
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
 unwrap_used = "deny"
 expect_used = "deny"
 panic = "deny"

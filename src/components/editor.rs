@@ -62,7 +62,7 @@ pub fn Editor(props: EditorProps) -> Element {
                             class: "split-editor-pane flex-1 h-full flex flex-col border-r border-[var(--border-color)] overflow-hidden bg-[var(--bg-app)]",
                             div {
                                 class: "editor-pane-header h-6.5 px-3 bg-[var(--bg-surface)] border-b border-[var(--border-color)] text-[10.5px] uppercase font-mono font-bold tracking-wider text-[var(--text-muted)] flex items-center justify-between select-none shrink-0",
-                                span { "Markdown Source" }
+                                span { "{doc.format.label()} Source" }
                                 span { "{line_count} lines" }
                             }
                             div {
@@ -97,12 +97,12 @@ pub fn Editor(props: EditorProps) -> Element {
                             }
                         }
 
-                        // Right Pane: Live Rendered HTML Markdown Preview
+                        // Right Pane: Live Rendered HTML Markdown/Config Preview
                         div {
                             class: "split-preview-pane flex-1 h-full flex flex-col overflow-hidden bg-[var(--reader-glass-bg)]",
                             div {
                                 class: "editor-pane-header h-6.5 px-3 bg-[var(--bg-surface)] border-b border-[var(--border-color)] text-[10.5px] uppercase font-mono font-bold tracking-wider text-[var(--text-muted)] flex items-center justify-between select-none shrink-0",
-                                span { "Live Preview" }
+                                span { if doc.format.is_config() { "{doc.format.label()} Preview" } else { "Live Preview" } }
                                 span { class: "text-[var(--accent)] font-semibold", "{doc.word_count} words" }
                             }
                             div {

@@ -1,8 +1,9 @@
-use crate::services::fs::{read_document_file, save_document_file, scan_markdown_tree};
-use crate::services::markdown::parse_markdown_document;
+use crate::services::fs::{read_document_file, save_document_file, scan_file_tree};
+use crate::services::markdown::{parse_document, parse_markdown_document};
 use crate::services::settings::{load_settings, save_settings};
 use crate::types::{
-    AppSettings, AppTheme, DocumentMode, FileTreeEntry, Language, SidebarTab, TabItem, UpdateStatus,
+    AppSettings, AppTheme, DocumentFormat, DocumentMode, FileFilterMode, FileTreeEntry, Language,
+    SidebarTab, TabItem, UpdateStatus,
 };
 use std::path::{Path, PathBuf};
 
@@ -106,10 +107,12 @@ pub struct AppStore {
     pub zoom_level: u32,
     pub show_sidebar: bool,
     pub sidebar_tab: SidebarTab,
+    pub file_filter_mode: FileFilterMode,
     pub sticky_headers: bool,
     pub show_search: bool,
     pub show_settings_modal: bool,
     pub file_tree: Vec<FileTreeEntry>,
+    pub is_loading_files: bool,
     pub opened_folder: Option<PathBuf>,
     pub settings: AppSettings,
     pub update_status: UpdateStatus,
@@ -139,10 +142,12 @@ impl Default for AppStore {
             zoom_level: settings.zoom_level,
             show_sidebar: settings.show_sidebar,
             sidebar_tab: settings.sidebar_tab,
+            file_filter_mode: settings.file_filter_mode,
             sticky_headers: settings.sticky_headers,
             show_search: false,
             show_settings_modal: false,
             file_tree: Vec::new(),
+            is_loading_files: false,
             opened_folder: None,
             settings,
             update_status: UpdateStatus::Idle,
@@ -173,18 +178,23 @@ impl AppStore {
             zoom_level: settings.zoom_level,
             show_sidebar: settings.show_sidebar,
             sidebar_tab: settings.sidebar_tab,
+            file_filter_mode: settings.file_filter_mode,
             sticky_headers: settings.sticky_headers,
             settings,
             ..Default::default()
         };
 
         if let Some(path) = initial_path {
-            if path.is_file() {
+            if path.is_dir() {
+                store.open_directory(path.to_path_buf());
+                if let Some(primary_doc) = find_primary_doc_in_dir(path) {
+                    store.open_file_from_path(primary_doc);
+                    store.tabs.retain(|t| t.id != 1);
+                }
+            } else {
                 store.open_file_from_path(path.to_path_buf());
                 // Remove the default welcome tab so only the requested file is open
                 store.tabs.retain(|t| t.id != 1);
-            } else if path.is_dir() {
-                store.open_directory(path.to_path_buf());
             }
         }
 
@@ -214,8 +224,9 @@ impl AppStore {
             return;
         }
 
+        let format = DocumentFormat::from_path(Some(&path));
         let content = read_document_file(&path).unwrap_or_else(|_| WELCOME_DOC.to_string());
-        let parsed = parse_markdown_document(&content);
+        let parsed = parse_document(&content, format);
         let title = path.file_name().map_or_else(|| "Document".to_string(), |n| n.to_string_lossy().to_string());
 
         let tab_id = self.next_tab_id;
@@ -224,7 +235,7 @@ impl AppStore {
         // If we haven't loaded a file tree yet, load the parent directory
         if self.file_tree.is_empty() {
             if let Some(parent) = path.parent() {
-                if let Ok(tree) = scan_markdown_tree(parent) {
+                if let Ok(tree) = scan_file_tree(parent, self.file_filter_mode) {
                     self.file_tree = tree;
                     self.opened_folder = Some(parent.to_path_buf());
                 }
@@ -243,17 +254,76 @@ impl AppStore {
         self.active_tab_id = tab_id;
     }
 
-    /// Open a directory into the file tree sidebar.
+    /// Prepare and set state for asynchronously opening a directory.
+    pub fn start_loading_directory(&mut self, dir: PathBuf) {
+        self.settings.add_recent_folder(dir.clone());
+        self.persist_settings();
+
+        self.opened_folder = Some(dir);
+        self.is_loading_files = true;
+        self.sidebar_tab = SidebarTab::Files;
+        self.show_sidebar = true;
+    }
+
+    /// Complete loading the file tree after asynchronous background scanning.
+    pub fn finish_loading_directory(&mut self, dir: PathBuf, tree: Vec<FileTreeEntry>) {
+        if self.opened_folder.as_ref() == Some(&dir) {
+            self.file_tree = tree;
+            self.is_loading_files = false;
+        }
+    }
+
+    /// Explicitly set the file tree loading state.
+    pub fn set_loading_files(&mut self, loading: bool) {
+        self.is_loading_files = loading;
+    }
+
+    /// Open a directory into the file tree sidebar synchronously.
     pub fn open_directory(&mut self, dir: PathBuf) {
         self.settings.add_recent_folder(dir.clone());
         self.persist_settings();
 
-        if let Ok(tree) = scan_markdown_tree(&dir) {
+        self.opened_folder = Some(dir.clone());
+        self.sidebar_tab = SidebarTab::Files;
+        self.show_sidebar = true;
+        if let Ok(tree) = scan_file_tree(&dir, self.file_filter_mode) {
             self.file_tree = tree;
-            self.opened_folder = Some(dir);
-            self.sidebar_tab = SidebarTab::Files;
-            self.show_sidebar = true;
         }
+        self.is_loading_files = false;
+    }
+
+    /// Refresh file tree based on current opened folder and file filter mode.
+    pub fn refresh_file_tree(&mut self) {
+        if let Some(ref dir) = self.opened_folder.clone() {
+            if let Ok(tree) = scan_file_tree(dir, self.file_filter_mode) {
+                self.file_tree = tree;
+            }
+        } else {
+            let parent_opt = self.active_tab()
+                .and_then(|t| t.path.as_ref())
+                .and_then(|p| p.parent().map(std::path::Path::to_path_buf));
+
+            if let Some(parent) = parent_opt {
+                if let Ok(tree) = scan_file_tree(&parent, self.file_filter_mode) {
+                    self.file_tree = tree;
+                    self.opened_folder = Some(parent);
+                }
+            }
+        }
+    }
+
+    /// Set file visibility filter mode and refresh the file tree.
+    pub fn set_file_filter_mode(&mut self, mode: FileFilterMode) {
+        self.file_filter_mode = mode;
+        self.settings.file_filter_mode = mode;
+        self.persist_settings();
+        self.refresh_file_tree();
+    }
+
+    /// Cycle to the next file visibility filter mode.
+    #[allow(dead_code)]
+    pub fn cycle_file_filter_mode(&mut self) {
+        self.set_file_filter_mode(self.file_filter_mode.next());
     }
 
     /// Select an active tab by its id.
@@ -297,21 +367,24 @@ impl AppStore {
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
             if tab.content != new_content {
                 tab.content = new_content;
-                tab.parsed = parse_markdown_document(&tab.content);
+                let format = DocumentFormat::from_path(tab.path.as_deref());
+                tab.parsed = parse_document(&tab.content, format);
                 tab.is_dirty = true;
             }
         }
     }
 
-    /// Format the Markdown source of the active tab (aligns tables, normalizes whitespace).
+    /// Format the source of the active tab (Markdown table alignment or JSON/TOML/YAML pretty printing).
     pub fn format_active_tab(&mut self) {
         let active_id = self.active_tab_id;
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
-            let formatted = crate::services::formatter::format_markdown(&tab.content);
-            if tab.content != formatted {
-                tab.content = formatted;
-                tab.parsed = parse_markdown_document(&tab.content);
-                tab.is_dirty = true;
+            let format = DocumentFormat::from_path(tab.path.as_deref());
+            if let Ok(formatted) = crate::services::formatter::format_document(&tab.content, format) {
+                if tab.content != formatted {
+                    tab.content = formatted;
+                    tab.parsed = parse_document(&tab.content, format);
+                    tab.is_dirty = true;
+                }
             }
         }
     }
@@ -389,7 +462,8 @@ impl AppStore {
             if let Some(ref p) = tab.path {
                 if p == path && tab.content != new_content {
                     tab.content.clone_from(&new_content.to_string());
-                    tab.parsed = parse_markdown_document(new_content);
+                    let format = DocumentFormat::from_path(Some(p));
+                    tab.parsed = parse_document(new_content, format);
                     tab.is_dirty = false;
                 }
             }
@@ -546,11 +620,61 @@ impl AppStore {
         self.zoom_level = defaults.zoom_level;
         self.show_sidebar = defaults.show_sidebar;
         self.sidebar_tab = defaults.sidebar_tab;
+        self.file_filter_mode = defaults.file_filter_mode;
         self.sticky_headers = defaults.sticky_headers;
         self.settings = defaults;
+        self.is_loading_files = false;
         self.update_status = UpdateStatus::Idle;
         self.persist_settings();
+        self.refresh_file_tree();
     }
+}
+
+/// Locate the primary documentation file in a directory (e.g. README.md, index.md, or first markdown file).
+#[must_use]
+pub fn find_primary_doc_in_dir(dir: &Path) -> Option<PathBuf> {
+    let candidates = [
+        "README.md",
+        "readme.md",
+        "Readme.md",
+        "README.markdown",
+        "readme.markdown",
+        "README.mdx",
+        "readme.mdx",
+        "index.md",
+        "Index.md",
+        "INDEX.md",
+        "index.markdown",
+        "index.mdx",
+    ];
+    for name in &candidates {
+        let candidate = dir.join(name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        let mut md_files: Vec<PathBuf> = entries
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .filter(|p| {
+                if p.is_file() {
+                    p.extension().and_then(|ext| ext.to_str()).is_some_and(|ext| {
+                        matches!(ext.to_ascii_lowercase().as_str(), "md" | "markdown" | "mdx" | "mdown")
+                    })
+                } else {
+                    false
+                }
+            })
+            .collect();
+        md_files.sort();
+        if let Some(first) = md_files.into_iter().next() {
+            return Some(first);
+        }
+    }
+
+    None
 }
 
 #[cfg(test)]
@@ -644,6 +768,79 @@ mod tests {
         store.toggle_format_on_save();
         assert!(store.settings.format_on_save);
     }
+
+    #[test]
+    fn test_config_tab_editing_and_formatting() {
+        let mut store = AppStore::default();
+        let json_path = PathBuf::from("test_config.json");
+        store.tabs[0].path = Some(json_path);
+        store.tabs[0].title = "test_config.json".to_string();
+
+        let unformatted_json = r#"{"app":"fast-md","enabled":true}"#;
+        store.update_active_tab_content(unformatted_json.to_string());
+        assert_eq!(store.tabs[0].parsed.format, DocumentFormat::Json);
+        assert!(store.tabs[0].is_dirty);
+        assert!(store.tabs[0].parsed.validation_error.is_none());
+
+        store.format_active_tab();
+        let formatted = &store.tabs[0].content;
+        assert!(formatted.contains("  \"app\": \"fast-md\""));
+        assert!(formatted.contains("  \"enabled\": true"));
+    }
+
+    #[test]
+    fn test_file_filter_mode_cycling() {
+        let mut store = AppStore::default();
+        store.set_file_filter_mode(FileFilterMode::MarkdownAndConfig);
+        assert_eq!(store.file_filter_mode, FileFilterMode::MarkdownAndConfig);
+
+        store.cycle_file_filter_mode();
+        assert_eq!(store.file_filter_mode, FileFilterMode::MarkdownOnly);
+
+        store.cycle_file_filter_mode();
+        assert_eq!(store.file_filter_mode, FileFilterMode::AllSupported);
+
+        store.cycle_file_filter_mode();
+        assert_eq!(store.file_filter_mode, FileFilterMode::AllFiles);
+
+        store.cycle_file_filter_mode();
+        assert_eq!(store.file_filter_mode, FileFilterMode::MarkdownAndConfig);
+    }
+
+    #[test]
+    fn test_new_with_options_file() {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let readme_path = manifest_dir.join("README.md");
+        let store = AppStore::new_with_options(Some(&readme_path), None, None, false);
+
+        assert_eq!(store.tabs.len(), 1);
+        if let Some(path) = &store.tabs[0].path {
+            assert_eq!(path, &readme_path);
+        }
+        assert_eq!(store.tabs[0].title, "README.md");
+    }
+
+    #[test]
+    fn test_new_with_options_directory() {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let store = AppStore::new_with_options(Some(&manifest_dir), None, None, false);
+
+        // Should open the directory in file tree and find README.md
+        assert_eq!(store.opened_folder.as_ref(), Some(&manifest_dir));
+        assert!(!store.file_tree.is_empty());
+        assert_eq!(store.tabs.len(), 1);
+        assert_eq!(store.tabs[0].title, "README.md");
+    }
+
+    #[test]
+    fn test_find_primary_doc_in_dir() {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let primary = find_primary_doc_in_dir(&manifest_dir);
+        assert!(primary.is_some());
+        if let Some(p) = primary {
+            if let Some(name) = p.file_name() {
+                assert!(name.to_string_lossy().to_lowercase().starts_with("readme"));
+            }
+        }
+    }
 }
-
-

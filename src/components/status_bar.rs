@@ -30,16 +30,20 @@ pub fn StatusBar(props: StatusBarProps) -> Element {
         |p| p.to_string_lossy().to_string(),
     );
 
-    let (doc_type, is_code_type) = props.file_path.as_ref().map_or((t.status_bar.markdown_doc, false), |p| {
-        p.extension()
-            .and_then(|e| e.to_str())
-            .map_or((t.status_bar.markdown_doc, false), |ext| match ext.to_ascii_lowercase().as_str() {
-                "mdx" => (t.status_bar.mdx_doc, true),
-                "md" | "markdown" => (t.status_bar.markdown_doc, false),
-                "txt" => (t.status_bar.text_doc, false),
-                _ => (t.status_bar.generic_doc, false),
-            })
-    });
+    let (doc_type, is_code_type) = if props.document.format.is_config() {
+        (props.document.format.label(), true)
+    } else {
+        props.file_path.as_ref().map_or((t.status_bar.markdown_doc, false), |p| {
+            p.extension()
+                .and_then(|e| e.to_str())
+                .map_or((t.status_bar.markdown_doc, false), |ext| match ext.to_ascii_lowercase().as_str() {
+                    "mdx" => (t.status_bar.mdx_doc, true),
+                    "md" | "markdown" => (t.status_bar.markdown_doc, false),
+                    "txt" => (t.status_bar.text_doc, false),
+                    _ => (t.status_bar.generic_doc, false),
+                })
+        })
+    };
 
     let mode_label = match props.mode {
         DocumentMode::View => t.toolbar.mode_view,
@@ -79,6 +83,15 @@ pub fn StatusBar(props: StatusBarProps) -> Element {
                     span {
                         class: "status-dirty-badge bg-[var(--bg-subtle)] text-[var(--text-muted)] opacity-60 px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold",
                         "{t.status_bar.status_saved}"
+                    }
+                }
+
+                // Syntax Error Pill if invalid config
+                if let Some(ref err) = props.document.validation_error {
+                    span {
+                        class: "status-error-badge bg-red-500/15 border border-red-500/40 text-red-400 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold flex items-center gap-1 cursor-help",
+                        title: "{err}",
+                        "⚠️ {t.editor.invalid_syntax}"
                     }
                 }
 
