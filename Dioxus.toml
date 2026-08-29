@@ -3,4 +3,7 @@ name = "fast-md"
 default_platform = "desktop"
 asset_dir = "src/assets"
 
+[components]
+components_dir = "src/ui"
+
 [desktop]
