@@ -350,20 +350,282 @@ window.insertSourceSnippet = function(snippet) {
     }
 };
 
-window.handleTextareaTab = function(e) {
-    const ta = document.getElementById('source-markdown-textarea');
-    if (!ta) return;
-    e.preventDefault();
-    if (document.execCommand) {
-        document.execCommand('insertText', false, '  ');
+function insertTextareaSpaces(ta, text) {
+    if (document.execCommand && ta === document.activeElement) {
+        document.execCommand('insertText', false, text);
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+        if (window.pushEditorHistory) window.pushEditorHistory(ta.value, ta.selectionStart, ta.selectionEnd, true);
     } else {
         const start = ta.selectionStart;
         const end = ta.selectionEnd;
         const val = ta.value;
-        ta.value = val.substring(0, start) + '  ' + val.substring(end);
-        ta.selectionStart = start + 2;
-        ta.selectionEnd = start + 2;
+        ta.value = val.substring(0, start) + text + val.substring(end);
+        ta.selectionStart = start + text.length;
+        ta.selectionEnd = start + text.length;
         ta.dispatchEvent(new Event('input', { bubbles: true }));
         if (window.pushEditorHistory) window.pushEditorHistory(ta.value, ta.selectionStart, ta.selectionEnd, true);
     }
+}
+
+window.handleSourceTab = function(e) {
+    const ta = document.getElementById('source-markdown-textarea');
+    if (!ta || e.target !== ta) return;
+    if (e.key !== 'Tab' || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+
+    if (e.shiftKey) {
+        const start = ta.selectionStart;
+        const val = ta.value;
+        const { lineStart, line, cursorInLine } = getLineInfo(val, start);
+        const leading = line.match(/^(\s*)/)[1];
+        const remove = Math.min(2, leading.length, cursorInLine);
+        if (remove === 0) return;
+        e.preventDefault();
+        const newLine = line.substring(remove);
+        const newVal = val.substring(0, lineStart) + newLine + val.substring(lineStart + line.length);
+        applyTextareaEdit(ta, newVal, Math.max(lineStart, start - remove));
+        return;
+    }
+
+    e.preventDefault();
+    insertTextareaSpaces(ta, '  ');
 };
+
+function getLineInfo(text, pos) {
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    const nextNl = text.indexOf('\n', pos);
+    const lineEnd = nextNl === -1 ? text.length : nextNl;
+    const line = text.substring(lineStart, lineEnd);
+    return {
+        lineStart,
+        lineEnd,
+        line,
+        cursorInLine: pos - lineStart,
+    };
+}
+
+function isInsideFencedCode(text, pos) {
+    const before = text.substring(0, pos);
+    let count = 0;
+    let idx = 0;
+    while ((idx = before.indexOf('```', idx)) !== -1) {
+        count++;
+        idx += 3;
+    }
+    idx = 0;
+    while ((idx = before.indexOf('~~~', idx)) !== -1) {
+        count++;
+        idx += 3;
+    }
+    return count % 2 === 1;
+}
+
+const LINE_PREFIX_RE = /^(\s*)(?:-\s*\[[ xX]\]\s*|[-*+]\s+|\d+\.\s+|>+\s*)/;
+
+function revealSourceCaret(ta) {
+    if (!ta) return;
+    requestAnimationFrame(function() {
+        const pos = ta.selectionStart;
+        const val = ta.value;
+        if (pos === 0 || val.charAt(pos - 1) === '\n') {
+            ta.scrollLeft = 0;
+        }
+
+        const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 21;
+        const lineIndex = val.substring(0, pos).split('\n').length - 1;
+        const lineTop = lineIndex * lineHeight;
+        const lineBottom = lineTop + lineHeight;
+        const viewTop = ta.scrollTop;
+        const viewBottom = viewTop + ta.clientHeight;
+
+        if (lineTop < viewTop) {
+            ta.scrollTop = lineTop;
+        } else if (lineBottom > viewBottom) {
+            ta.scrollTop = lineBottom - ta.clientHeight;
+        }
+    });
+}
+
+function applyTextareaEdit(ta, newValue, cursorPos) {
+    ta.value = newValue;
+    ta.selectionStart = cursorPos;
+    ta.selectionEnd = cursorPos;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    if (window.pushEditorHistory) window.pushEditorHistory(ta.value, ta.selectionStart, ta.selectionEnd, true);
+    if (window.updateToolbarActiveStates) window.updateToolbarActiveStates();
+}
+
+function handleListEnter(ta, val, start) {
+    const { lineStart, lineEnd, line, cursorInLine } = getLineInfo(val, start);
+    const match = line.match(LINE_PREFIX_RE);
+    if (!match) return false;
+
+    const indent = match[1];
+    const fullPrefix = match[0];
+    const marker = fullPrefix.slice(indent.length);
+    const contentStart = fullPrefix.length;
+    const contentBefore = line.substring(contentStart, cursorInLine);
+    const contentAfter = line.substring(cursorInLine);
+    const contentOnly = line.substring(contentStart);
+
+    if (contentOnly.trim() === '') {
+        const newVal = val.substring(0, lineStart) + indent + val.substring(lineEnd);
+        applyTextareaEdit(ta, newVal, lineStart + indent.length);
+        return true;
+    }
+
+    let nextMarker = marker;
+    const numMatch = marker.match(/^(\d+)\.\s+$/);
+    if (numMatch) {
+        nextMarker = `${parseInt(numMatch[1], 10) + 1}. `;
+    } else if (/^[-*+]\s*\[[ xX]\]\s*$/.test(marker)) {
+        nextMarker = '- [ ] ';
+    }
+
+    const currentLine = fullPrefix + contentBefore;
+    const nextLine = indent + nextMarker + contentAfter;
+    const insert = currentLine + '\n' + nextLine;
+    const newVal = val.substring(0, lineStart) + insert + val.substring(lineEnd);
+    const newCursor = lineStart + currentLine.length + 1 + indent.length + nextMarker.length;
+    applyTextareaEdit(ta, newVal, newCursor);
+    return true;
+}
+
+function splitTableRow(line) {
+    let trimmed = line.trim();
+    if (trimmed.startsWith('|')) trimmed = trimmed.slice(1);
+    if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
+
+    const cells = [];
+    let current = '';
+    const chars = trimmed.split('');
+    for (let i = 0; i < chars.length; i++) {
+        if (chars[i] === '\\' && chars[i + 1] === '|') {
+            current += '|';
+            i++;
+        } else if (chars[i] === '|') {
+            cells.push(current.trim());
+            current = '';
+        } else {
+            current += chars[i];
+        }
+    }
+    cells.push(current.trim());
+    return cells;
+}
+
+function isTableRow(line) {
+    const trimmed = line.trim();
+    if (!trimmed || !trimmed.includes('|')) return false;
+    return trimmed.startsWith('|') || trimmed.endsWith('|') || (trimmed.match(/\|/g) || []).length >= 2;
+}
+
+function isTableDelimiterRow(line) {
+    const trimmed = line.trim();
+    if (!trimmed.includes('|') || !trimmed.includes('-')) return false;
+    const cells = splitTableRow(trimmed);
+    if (cells.length === 0) return false;
+    return cells.every((c) => {
+        const t = c.trim();
+        return t.length > 0 && /^:?-{1,}:?$/.test(t.replace(/\s/g, ''));
+    });
+}
+
+function makeTableRow(cells, empty) {
+    const body = cells.map((c) => (empty ? ' ' : c)).join(' | ');
+    return `| ${body} |`;
+}
+
+function handleTableEnter(ta, val, start) {
+    const { lineStart, lineEnd, line } = getLineInfo(val, start);
+    if (!isTableRow(line)) return false;
+
+    const cells = splitTableRow(line);
+    const colCount = cells.length;
+    if (colCount === 0) return false;
+
+    if (cells.every((c) => c.trim() === '')) {
+        let removeEnd = lineEnd;
+        if (removeEnd < val.length && val[removeEnd] === '\n') removeEnd++;
+        const newVal = val.substring(0, lineStart) + val.substring(removeEnd);
+        applyTextareaEdit(ta, newVal, lineStart);
+        return true;
+    }
+
+    const afterLine = lineEnd < val.length && val[lineEnd] === '\n' ? lineEnd + 1 : lineEnd;
+    const nextNl = val.indexOf('\n', afterLine);
+    const nextLine = val.substring(afterLine, nextNl === -1 ? val.length : nextNl);
+    const isDelimiter = isTableDelimiterRow(line);
+
+    if (!isDelimiter && isTableDelimiterRow(nextLine)) {
+        const emptyRow = makeTableRow(Array(colCount).fill(''), true);
+        const insertAt = nextNl === -1 ? val.length : nextNl;
+        const suffix = val.substring(insertAt);
+        const prefix = val.substring(0, insertAt);
+        const insert = (suffix.startsWith('\n') ? '\n' : '\n') + emptyRow;
+        const newVal = prefix + insert + suffix;
+        const newCursor = prefix.length + insert.length - emptyRow.length + 2;
+        applyTextareaEdit(ta, newVal, newCursor);
+        return true;
+    }
+
+    if (!isDelimiter && !isTableDelimiterRow(nextLine)) {
+        const delim = makeTableRow(Array(colCount).fill('---'), false);
+        const emptyRow = makeTableRow(Array(colCount).fill(''), true);
+        const suffix = val.substring(lineEnd);
+        const prefix = val.substring(0, lineEnd);
+        const insert = (suffix.startsWith('\n') ? '' : '\n') + delim + '\n' + emptyRow;
+        const newVal = prefix + insert + suffix;
+        const newCursor = prefix.length + insert.length - emptyRow.length + 2;
+        applyTextareaEdit(ta, newVal, newCursor);
+        return true;
+    }
+
+    const emptyRow = makeTableRow(Array(colCount).fill(''), true);
+    const suffix = val.substring(lineEnd);
+    const prefix = val.substring(0, lineEnd);
+    const insert = (suffix.startsWith('\n') ? '\n' : '\n') + emptyRow;
+    const newVal = prefix + insert + suffix;
+    const newCursor = prefix.length + insert.length - emptyRow.length + 2;
+    applyTextareaEdit(ta, newVal, newCursor);
+    return true;
+}
+
+window.handleSourceEnter = function(e) {
+    const ta = document.getElementById('source-markdown-textarea');
+    if (!ta || e.target !== ta) return;
+    if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    if (start !== end) return;
+
+    const val = ta.value;
+    if (isInsideFencedCode(val, start)) return;
+
+    if (handleListEnter(ta, val, start)) {
+        e.preventDefault();
+        revealSourceCaret(ta);
+        return;
+    }
+
+    if (handleTableEnter(ta, val, start)) {
+        e.preventDefault();
+        revealSourceCaret(ta);
+    }
+};
+
+window.handleSourceEnterKeyup = function(e) {
+    const ta = document.getElementById('source-markdown-textarea');
+    if (!ta || e.target !== ta) return;
+    if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+    revealSourceCaret(ta);
+};
+
+document.addEventListener('keydown', function(e) {
+    if (window.handleSourceTab) window.handleSourceTab(e);
+    if (window.handleSourceEnter) window.handleSourceEnter(e);
+}, true);
+
+document.addEventListener('keyup', function(e) {
+    if (window.handleSourceEnterKeyup) window.handleSourceEnterKeyup(e);
+}, true);

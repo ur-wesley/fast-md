@@ -63,36 +63,74 @@ function scrollTextareaToHeading(id) {
     const ta = document.getElementById('source-markdown-textarea');
     if (!ta) return false;
     const lines = ta.value.split('\n');
-    let pos = 0;
     for (let i = 0; i < lines.length; i++) {
         const m = lines[i].match(/^(#{1,6})\s+(.+)$/);
         if (m && slugifyHeading(m[2].trim()) === id) {
             const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 21;
             ta.scrollTop = i * lineHeight;
-            ta.focus();
-            ta.setSelectionRange(pos, pos + lines[i].length);
             if (window.onEditorSourceScroll) window.onEditorSourceScroll();
             return true;
         }
-        pos += lines[i].length + 1;
     }
     return false;
 }
 
-window.scrollToSection = function(id) {
+function scrollTextareaToLine(line) {
+    const ta = document.getElementById('source-markdown-textarea');
+    if (!ta || line < 0) return false;
+    const lines = ta.value.split('\n');
+    if (line >= lines.length) return false;
+    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 21;
+    ta.scrollTop = line * lineHeight;
+    if (window.onEditorSourceScroll) window.onEditorSourceScroll();
+    return true;
+}
+
+function scrollPreToLine(line) {
+    const areas = [
+        document.getElementById('viewer-scroll-area'),
+        document.getElementById('split-preview-scroll-area'),
+        document.getElementById('wysiwyg-scroll-area'),
+    ];
+    for (const area of areas) {
+        if (!area) continue;
+        const pre = area.querySelector('.config-code-block pre, .config-code-block .code-content pre, pre');
+        if (!pre) continue;
+        const lineHeight = parseFloat(getComputedStyle(pre).lineHeight) || 21;
+        const preRect = pre.getBoundingClientRect();
+        const areaRect = area.getBoundingClientRect();
+        const offsetInArea = preRect.top - areaRect.top + area.scrollTop;
+        area.scrollTop = offsetInArea + line * lineHeight;
+        return true;
+    }
+    return false;
+}
+
+window.scrollToSection = function(id, line) {
     try {
         if (!id) return;
+        if (typeof line === 'number' && line >= 0) {
+            scrollTextareaToLine(line);
+            scrollPreToLine(line);
+            if (window.saveCurrentScroll) window.saveCurrentScroll();
+            if (window.onViewerScroll) window.onViewerScroll();
+            return;
+        }
         const el = document.getElementById(id);
         if (el) {
             const scroller = nearestScroller(el);
             if (scroller) {
                 scrollContainerToEl(scroller, el);
             } else {
-                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.scrollIntoView({ block: 'start' });
             }
+            if (window.saveCurrentScroll) window.saveCurrentScroll();
+            if (window.onViewerScroll) window.onViewerScroll();
+            return;
         }
         scrollTextareaToHeading(id);
         if (window.saveCurrentScroll) window.saveCurrentScroll();
+        if (window.onViewerScroll) window.onViewerScroll();
     } catch(e) { console.error(e); }
 };
 

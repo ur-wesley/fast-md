@@ -13,6 +13,7 @@ pub struct EditorProps {
     pub mode: DocumentMode,
     pub document: ParsedDocument,
     pub raw_content: String,
+    pub html_revision: u64,
     pub is_full_width: bool,
     pub zoom_level: u32,
     pub sticky_headers: bool,
@@ -24,17 +25,25 @@ pub fn Editor(props: EditorProps) -> Element {
     let mut store = props.store;
     let mode = props.mode;
     let tab_id = props.tab_id;
+    let html_revision = props.html_revision;
     let raw_content = props.raw_content.clone();
     let doc = &props.document;
     let t = props.language.strings();
     let zoom_factor = f64::from(props.zoom_level) / 100.0;
     let zoom_style = format!("zoom: {zoom_factor};");
 
-    let line_count = raw_content.split('\n').count();
-    let line_numbers: String = (1..=line_count)
-        .map(|n| n.to_string())
-        .collect::<Vec<_>>()
-        .join("\n");
+    let line_count = raw_content.split('\n').count().max(1);
+    let line_wrap = store().settings.line_wrap;
+    let textarea_wrap_class = if line_wrap {
+        "whitespace-pre-wrap overflow-x-hidden break-all"
+    } else {
+        "whitespace-pre overflow-x-auto"
+    };
+    let source_editor_wrap_class = if line_wrap {
+        " is-wrapped"
+    } else {
+        ""
+    };
 
     let container_class = if props.is_full_width {
         "viewer-container full-width mx-auto max-w-[1280px] w-full pt-4 pb-12"
@@ -49,9 +58,10 @@ pub fn Editor(props: EditorProps) -> Element {
     };
 
     use_effect(move || {
-        let _ = line_count;
+        let _ = store();
         let _ = mode;
         let _ = tab_id;
+        let _ = line_wrap;
         bind_editor_scroll();
     });
 
@@ -86,21 +96,26 @@ pub fn Editor(props: EditorProps) -> Element {
                                     span { "{line_count} lines" }
                                 }
                                 div {
-                                    class: "source-code-editor flex-1 flex h-full overflow-hidden relative font-mono text-sm",
-                                    // Line Numbers Gutter
+                                    class: "source-code-editor{source_editor_wrap_class} flex-1 flex h-full overflow-hidden relative font-mono text-sm",
                                     div {
                                         id: "source-line-gutter",
-                                        class: "editor-gutter w-12 text-right text-[var(--text-muted)] opacity-40 bg-[var(--bg-subtle)]/50 select-none overflow-hidden shrink-0 font-mono text-xs leading-relaxed border-r border-[var(--border-subtle)] pointer-events-none whitespace-pre",
+                                        class: "editor-gutter w-12 text-right text-[var(--text-muted)] bg-[var(--bg-subtle)]/50 select-none overflow-hidden shrink-0 font-mono text-xs border-r border-[var(--border-subtle)] pointer-events-none",
                                         div {
                                             id: "source-line-gutter-inner",
-                                            class: "py-3 px-1.5",
-                                            "{line_numbers}"
+                                            class: "px-1.5",
+                                            for line_num in 1..=line_count {
+                                                div {
+                                                    class: "gutter-line",
+                                                    "data-line": "{line_num}",
+                                                    "{line_num}"
+                                                }
+                                            }
                                         }
                                     }
-                                    // Main Textarea
                                     textarea {
                                         id: "source-markdown-textarea",
-                                        class: "editor-textarea flex-1 h-full w-full py-3 px-3.5 bg-transparent text-[var(--text-main)] caret-[var(--accent)] font-mono text-xs leading-relaxed border-0 outline-none resize-none overflow-y-auto whitespace-pre overflow-x-auto",
+                                        class: "editor-textarea flex-1 h-full w-full py-3 px-3.5 bg-transparent text-[var(--text-main)] caret-[var(--accent)] font-mono text-xs leading-relaxed border-0 outline-none resize-none overflow-y-auto {textarea_wrap_class}",
+                                        "data-line-wrap": if line_wrap { "1" } else { "0" },
                                         value: "{raw_content}",
                                         placeholder: "{t.editor.source_placeholder}",
                                         spellcheck: false,
@@ -108,12 +123,6 @@ pub fn Editor(props: EditorProps) -> Element {
                                         oninput: move |evt| {
                                             let val = evt.value();
                                             store.write().update_active_tab_content(val);
-                                        },
-                                        onkeydown: move |evt| {
-                                            let key = evt.key();
-                                            if key == Key::Tab {
-                                                dioxus::prelude::document::eval("window.handleTextareaTab && window.handleTextareaTab(event);");
-                                            }
                                         },
                                     }
                                 }
@@ -161,21 +170,26 @@ pub fn Editor(props: EditorProps) -> Element {
                         div {
                             class: "editor-source-container flex-1 h-full flex flex-col overflow-hidden bg-[var(--bg-app)]",
                             div {
-                                class: "source-code-editor flex-1 flex h-full overflow-hidden relative font-mono",
-                                // Line Numbers Gutter
+                                class: "source-code-editor{source_editor_wrap_class} flex-1 flex h-full overflow-hidden relative font-mono",
                                 div {
                                     id: "source-line-gutter",
-                                    class: "editor-gutter w-14 text-right text-[var(--text-muted)] opacity-50 bg-[var(--bg-subtle)]/40 select-none overflow-hidden shrink-0 font-mono text-sm leading-relaxed border-r border-[var(--border-color)] pointer-events-none whitespace-pre",
+                                    class: "editor-gutter w-14 text-right text-[var(--text-muted)] bg-[var(--bg-subtle)]/40 select-none overflow-hidden shrink-0 font-mono text-sm border-r border-[var(--border-color)] pointer-events-none",
                                     div {
                                         id: "source-line-gutter-inner",
-                                        class: "py-4 px-2",
-                                        "{line_numbers}"
+                                        class: "px-2",
+                                        for line_num in 1..=line_count {
+                                            div {
+                                                class: "gutter-line",
+                                                "data-line": "{line_num}",
+                                                "{line_num}"
+                                            }
+                                        }
                                     }
                                 }
-                                // Main Textarea
                                 textarea {
                                     id: "source-markdown-textarea",
-                                    class: "editor-textarea flex-1 h-full w-full py-4 px-5 bg-transparent text-[var(--text-main)] caret-[var(--accent)] font-mono text-sm leading-relaxed border-0 outline-none resize-none overflow-y-auto whitespace-pre overflow-x-auto",
+                                    class: "editor-textarea flex-1 h-full w-full py-4 px-5 bg-transparent text-[var(--text-main)] caret-[var(--accent)] font-mono text-sm leading-relaxed border-0 outline-none resize-none overflow-y-auto {textarea_wrap_class}",
+                                    "data-line-wrap": if line_wrap { "1" } else { "0" },
                                     value: "{raw_content}",
                                     placeholder: "{t.editor.source_placeholder}",
                                     spellcheck: false,
@@ -183,12 +197,6 @@ pub fn Editor(props: EditorProps) -> Element {
                                     oninput: move |evt| {
                                         let val = evt.value();
                                         store.write().update_active_tab_content(val);
-                                    },
-                                    onkeydown: move |evt| {
-                                        let key = evt.key();
-                                        if key == Key::Tab {
-                                            dioxus::prelude::document::eval("window.handleTextareaTab && window.handleTextareaTab(event);");
-                                        }
                                     },
                                 }
                             }
@@ -216,15 +224,11 @@ pub fn Editor(props: EditorProps) -> Element {
                                 // Interactive ContentEditable Visual Canvas
                                 div {
                                     id: "wysiwyg-editor-surface",
+                                    key: "{tab_id}-wysiwyg-{html_revision}",
                                     class: "wysiwyg-editor-surface markdown-body leading-relaxed outline-none min-h-[500px] p-2 rounded-xl focus:ring-1 focus:ring-[var(--accent)]/30 transition-all",
                                     contenteditable: "true",
                                     spellcheck: "true",
                                     dangerous_inner_html: "{doc.html_content}",
-                                    oninput: move |_| {
-                                        dioxus::prelude::document::eval(
-                                            "if (window.syncWysiwygContent) window.syncWysiwygContent();",
-                                        );
-                                    },
                                     onblur: move |_| {
                                         dioxus::prelude::document::eval(
                                             "if (window.syncWysiwygContent) window.syncWysiwygContent();",

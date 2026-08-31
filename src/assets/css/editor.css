@@ -71,12 +71,43 @@
     min-height: 0;
     overflow: hidden;
     user-select: none;
-    line-height: 1.625;
+    line-height: 0;
     font-family: var(--font-mono, monospace);
 }
 
 #source-line-gutter-inner {
     will-change: transform;
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    width: 100%;
+    padding-top: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+}
+
+.gutter-line {
+    display: block;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-align: right;
+    min-height: 0;
+    flex-shrink: 1;
+    flex-basis: 0;
+    color: var(--text-muted);
+    opacity: 0.55;
+}
+
+.gutter-line.is-current {
+    color: var(--accent);
+    opacity: 1;
+    background-color: color-mix(in srgb, var(--accent) 22%, transparent);
+    border-radius: 4px;
+    width: max-content;
+    max-width: 100%;
+    margin-left: auto;
+    padding-left: 0.4em;
+    padding-right: 0.25em;
 }
 
 .editor-textarea {
@@ -175,6 +206,58 @@
     border-radius: 4px;
     background-color: var(--bg-subtle);
     color: var(--text-muted);
+}
+
+.config-code-block .rb {
+    font-weight: 600;
+}
+
+.config-code-block .rb-0 {
+    color: #e5c07b;
+}
+
+.config-code-block .rb-1 {
+    color: #c678dd;
+}
+
+.config-code-block .rb-2 {
+    color: #56b6c2;
+}
+
+.config-code-block .rb-3 {
+    color: #98c379;
+}
+
+.config-code-block .rb-4 {
+    color: #d19a66;
+}
+
+.config-code-block .rb-5 {
+    color: #61afef;
+}
+
+.theme-light .config-code-block .rb-0 {
+    color: #986801;
+}
+
+.theme-light .config-code-block .rb-1 {
+    color: #a626a4;
+}
+
+.theme-light .config-code-block .rb-2 {
+    color: #0184bc;
+}
+
+.theme-light .config-code-block .rb-3 {
+    color: #50a14f;
+}
+
+.theme-light .config-code-block .rb-4 {
+    color: #c18401;
+}
+
+.theme-light .config-code-block .rb-5 {
+    color: #4078f2;
 }
 
 /* File Tree Item active styling & badges */

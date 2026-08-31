@@ -24,6 +24,7 @@ pub fn has_matches(query: &str, t: &'static crate::i18n::Translations) -> bool {
         || matches_reading_layout(&q, t)
         || matches_zoom(&q, t)
         || matches_font_size(&q, t)
+        || matches_line_wrap(&q, t)
         || matches_auto_reload(&q, t)
         || matches_sticky_headers(&q, t)
 }
@@ -78,6 +79,15 @@ fn matches_font_size(q: &str, t: &'static crate::i18n::Translations) -> bool {
         "font", "size", "schrift", "schriftgröße", "typography", "14px", "16px", "18px", "20px",
         t.settings.font_size_title,
         t.settings.font_size_desc,
+    ];
+    haystacks.iter().any(|h| h.to_lowercase().contains(q))
+}
+
+fn matches_line_wrap(q: &str, t: &'static crate::i18n::Translations) -> bool {
+    let haystacks = [
+        "wrap", "line wrap", "word wrap", "soft wrap", "umbruch", "zeilenumbruch", "wordwrap",
+        t.settings.line_wrap_title,
+        t.settings.line_wrap_desc,
     ];
     haystacks.iter().any(|h| h.to_lowercase().contains(q))
 }
@@ -152,6 +162,7 @@ pub fn ReaderPane(props: ReaderPaneProps) -> Element {
     let show_reading_layout = filter.is_empty() || matches_reading_layout(&filter, t);
     let show_zoom = filter.is_empty() || matches_zoom(&filter, t);
     let show_font_size = filter.is_empty() || matches_font_size(&filter, t);
+    let show_line_wrap = filter.is_empty() || matches_line_wrap(&filter, t);
     let show_auto_reload = filter.is_empty() || matches_auto_reload(&filter, t);
     let show_sticky_headers = filter.is_empty() || matches_sticky_headers(&filter, t);
 
@@ -162,6 +173,7 @@ pub fn ReaderPane(props: ReaderPaneProps) -> Element {
         use_memo(move || Some(HashSet::from([reading_layout_index(store().is_full_width)])));
     let font_size_pressed =
         use_memo(move || Some(HashSet::from([font_size_index(store().settings.font_size)])));
+    let line_wrap_checked = use_memo(move || Some(store().settings.line_wrap));
     let auto_reload_checked = use_memo(move || Some(store().settings.auto_reload));
     let sticky_headers_checked = use_memo(move || Some(store().settings.sticky_headers));
 
@@ -171,7 +183,7 @@ pub fn ReaderPane(props: ReaderPaneProps) -> Element {
 
             if show_default_mode {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.default_mode_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.default_mode_desc}" }
@@ -196,7 +208,7 @@ pub fn ReaderPane(props: ReaderPaneProps) -> Element {
 
             if show_format_on_save {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.format_on_save_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.format_on_save_desc}" }
@@ -214,7 +226,7 @@ pub fn ReaderPane(props: ReaderPaneProps) -> Element {
 
             if show_reading_layout {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.reading_layout_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.reading_layout_desc}" }
@@ -240,7 +252,7 @@ pub fn ReaderPane(props: ReaderPaneProps) -> Element {
 
             if show_zoom {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.zoom_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.zoom_desc}" }
@@ -277,7 +289,7 @@ pub fn ReaderPane(props: ReaderPaneProps) -> Element {
 
             if show_font_size {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.font_size_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.font_size_desc}" }
@@ -300,9 +312,25 @@ pub fn ReaderPane(props: ReaderPaneProps) -> Element {
                 }
             }
 
+            if show_line_wrap {
+                div {
+                    class: "settings-option-row",
+                    div {
+                        h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.line_wrap_title}" }
+                        p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.line_wrap_desc}" }
+                    }
+                    Switch {
+                        checked: line_wrap_checked,
+                        on_checked_change: move |checked: bool| {
+                            store.write().set_line_wrap(checked);
+                        },
+                    }
+                }
+            }
+
             if show_auto_reload {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.auto_reload_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.auto_reload_desc}" }
@@ -318,7 +346,7 @@ pub fn ReaderPane(props: ReaderPaneProps) -> Element {
 
             if show_sticky_headers {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.sticky_headers_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.sticky_headers_desc}" }
