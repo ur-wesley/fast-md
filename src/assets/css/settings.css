@@ -93,3 +93,30 @@
     box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
+.settings-option-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.875rem;
+    background-color: var(--bg-app);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+}
+
+.settings-option-row > :first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.settings-option-row > :last-child:not(:only-child) {
+    flex-shrink: 0;
+}
+
+.settings-section .dx-toggle-item {
+    min-width: 0;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+

@@ -270,7 +270,7 @@ pub fn UpdatesPane(props: UpdatesPaneProps) -> Element {
 
             if show_auto_check {
                 div {
-                    class: "flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-app)] border border-[var(--border-color)]",
+                    class: "settings-option-row",
                     div {
                         class: "flex flex-col gap-0.5",
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.auto_check_updates_title}" }

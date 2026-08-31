@@ -194,7 +194,7 @@ pub fn WorkspacePane(props: WorkspacePaneProps) -> Element {
 
             if show_language {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.language_section_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.language_section_desc}" }
@@ -217,7 +217,7 @@ pub fn WorkspacePane(props: WorkspacePaneProps) -> Element {
 
             if show_sidebar_position {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.sidebar_position_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.sidebar_position_desc}" }
@@ -240,7 +240,7 @@ pub fn WorkspacePane(props: WorkspacePaneProps) -> Element {
 
             if show_sidebar_tab {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.sidebar_tab_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.sidebar_tab_desc}" }
@@ -263,7 +263,7 @@ pub fn WorkspacePane(props: WorkspacePaneProps) -> Element {
 
             if show_sidebar_visibility {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.sidebar_visibility_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.sidebar_visibility_desc}" }
@@ -281,7 +281,7 @@ pub fn WorkspacePane(props: WorkspacePaneProps) -> Element {
 
             if show_file_filter {
                 div {
-                    class: "flex items-center justify-between p-3.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl",
+                    class: "settings-option-row",
                     div {
                         h4 { class: "text-xs font-semibold text-[var(--text-heading)] m-0", "{t.settings.file_filter_mode_title}" }
                         p { class: "text-xs text-[var(--text-muted)] m-0 mt-0.5", "{t.settings.file_filter_mode_desc}" }
