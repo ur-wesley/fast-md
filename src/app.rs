@@ -1,7 +1,7 @@
 use crate::cli::CliArgs;
 use crate::components::{
-    Editor, SettingsModal, Sidebar, StatusBar, TabBar, TitleBar, Toolbar, Viewer, WorkspaceSplit,
-    ZenExitButton,
+    Editor, FindInFiles, SettingsModal, Sidebar, StatusBar, TabBar, TitleBar, Toolbar, Viewer,
+    WorkspaceSplit, ZenExitButton,
 };
 use crate::services::fs::read_document_file;
 use crate::services::updater;
@@ -251,6 +251,12 @@ pub fn App() -> Element {
                 }
             }
 
+            if store_read.show_find_in_files {
+                FindInFiles {
+                    store: store,
+                }
+            }
+
             // Custom Window Title Bar (hidden in Zen mode)
             if !is_zen {
                 TitleBar {
@@ -281,11 +287,6 @@ pub fn App() -> Element {
                         sidebar: rsx! {
                             Sidebar {
                                 store: store,
-                                on_select_heading: move |id: String| {
-                                    dioxus::prelude::document::eval(&format!(
-                                        "window.scrollToSection && window.scrollToSection({id:?});"
-                                    ));
-                                },
                             }
                         },
                         content: rsx! {
@@ -311,6 +312,7 @@ pub fn App() -> Element {
                                         mode: document_mode,
                                         document: active_tab.parsed.clone(),
                                         raw_content: active_tab.content.clone(),
+                                        html_revision: active_tab.html_revision,
                                         is_full_width: is_full_width,
                                         zoom_level: zoom_level,
                                         sticky_headers: store_read.sticky_headers,
@@ -358,7 +360,12 @@ pub fn App() -> Element {
                             is_dirty: active_tab.is_dirty,
                             zoom_level: zoom_level,
                             language: store_read.language,
-                            on_cycle_mode: move |()| store.write().cycle_mode(),
+                            on_cycle_mode: move |()| {
+                                dioxus::prelude::document::eval(
+                                    "window.prepareDocumentModeChange && window.prepareDocumentModeChange();",
+                                );
+                                store.write().cycle_mode();
+                            },
                         }
                     } else {
                         footer {

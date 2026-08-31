@@ -1,8 +1,8 @@
 use super::{
-    CommonTranslations, ContextMenuTranslations, EditorTranslations, FrontmatterTranslations,
-    SearchBarTranslations, SettingsTranslations, ShortcutsTranslations, SidebarTranslations,
-    StatusBarTranslations, TabBarTranslations, TitleBarTranslations, ToolbarTranslations,
-    Translations, ZenTranslations,
+    CommonTranslations, ContextMenuTranslations, EditorTranslations, FindInFilesTranslations,
+    FrontmatterTranslations, SearchBarTranslations, SettingsTranslations, ShortcutsTranslations,
+    SidebarTranslations, StatusBarTranslations, TabBarTranslations, TitleBarTranslations,
+    ToolbarTranslations, Translations, ZenTranslations,
 };
 
 pub const EN: Translations = Translations {
@@ -22,6 +22,10 @@ pub const EN: Translations = Translations {
         restore: "Restore",
         close: "Close",
         workspace: "Workspace",
+        workspace_search_placeholder: "Search projects...",
+        workspace_this_window: "This Window",
+        workspace_recent_projects: "Recent Projects",
+        workspace_open_folder: "Open Local Folder",
         shortcut_ctrl_f: "Ctrl F",
         update_available_badge: "Update Available",
     },
@@ -151,6 +155,16 @@ pub const EN: Translations = Translations {
         next_match: "Next Match (Enter)",
         close_search: "Close Search (Esc)",
     },
+    find_in_files: FindInFilesTranslations {
+        title: "Find in Files",
+        placeholder: "Search workspace files...",
+        indexing: "Indexing workspace files...",
+        searching: "Searching...",
+        type_to_search: "Type to search open folder and tabs",
+        no_results: "No matches found",
+        no_results_desc: "Try different keywords or open a folder first.",
+        close: "Close",
+    },
     settings: SettingsTranslations {
         modal_title: "Preferences & Settings",
         auto_save_notice: "Saved automatically to settings.json",
@@ -212,6 +226,8 @@ pub const EN: Translations = Translations {
         zoom_desc: "Scale typography and document images.",
         font_size_title: "Base Document Font Size",
         font_size_desc: "Typography size for paragraphs and body content.",
+        line_wrap_title: "Line wrapping",
+        line_wrap_desc: "Wrap long lines in the source editor instead of scrolling horizontally.",
         auto_reload_title: "Live Auto-Reload",
         auto_reload_desc: "Automatically reload and re-render document when modified on disk.",
         sticky_headers_title: "Sticky Markdown Headings",
@@ -306,6 +322,8 @@ pub const EN: Translations = Translations {
         action_cycle_mode_desc: "Switch between View, Split, Editor, and Source",
         action_find: "Find in Document",
         action_find_desc: "Focus search input and highlight matches",
+        action_find_in_files: "Find in Files",
+        action_find_in_files_desc: "Search document contents across the workspace",
         action_format_document: "Format Document",
         action_format_document_desc: "Format Markdown source and align tables",
         action_zoom_in: "Zoom In",

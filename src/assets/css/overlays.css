@@ -45,6 +45,140 @@
     color: var(--text-heading);
 }
 
+/* ================= Find in Files Overlay ================= */
+
+.find-in-files-backdrop {
+  position: fixed;
+  z-index: 1099;
+  background: rgb(0 0 0 / 35%);
+  inset: 0;
+}
+
+.find-in-files-dialog {
+  position: fixed;
+  top: 12%;
+  left: 50%;
+  z-index: 1100;
+  display: flex;
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: min(28rem, calc(100vh - 4rem));
+  box-sizing: border-box;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-menu);
+  color: var(--text-main);
+  transform: translateX(-50%);
+  text-align: left;
+}
+
+.find-in-files-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.find-in-files-title {
+  flex: 1;
+  color: var(--text-heading);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.find-in-files-input-row {
+  padding: 10px 14px;
+}
+
+.find-in-files-input {
+  width: 100%;
+}
+
+.find-in-files-results {
+  display: flex;
+  overflow-y: auto;
+  min-height: 8rem;
+  max-height: 18rem;
+  flex-direction: column;
+  padding: 0 8px 10px;
+  gap: 2px;
+}
+
+.find-in-files-status {
+  padding: 16px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.find-in-files-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 12px;
+  gap: 4px;
+  text-align: center;
+}
+
+.find-in-files-empty-title {
+  color: var(--text-heading);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.find-in-files-empty-desc {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.find-in-files-result {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  gap: 8px;
+  text-align: left;
+}
+
+.find-in-files-result:hover,
+.find-in-files-result.is-selected {
+  background: var(--bg-hover);
+}
+
+.find-in-files-result-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.find-in-files-result-path {
+  color: var(--text-heading);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.find-in-files-result-snippet {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ================= Floating Zen Mode Exit Button ================= */
 
 .floating-zen-exit-btn {

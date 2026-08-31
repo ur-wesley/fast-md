@@ -15,6 +15,7 @@ impl AppStore {
         // If file is already open, activate that tab
         if let Some(existing) = self.tabs.iter().find(|t| t.path.as_ref() == Some(&path)) {
             self.active_tab_id = existing.id;
+            self.snapshot_current_workspace();
             return None;
         }
 
@@ -43,9 +44,11 @@ impl AppStore {
             content,
             parsed,
             is_dirty: false,
+            html_revision: 0,
         });
 
         self.active_tab_id = tab_id;
+        self.snapshot_current_workspace();
         scan_parent
     }
 
@@ -58,6 +61,7 @@ impl AppStore {
         self.is_loading_files = true;
         self.sidebar_tab = SidebarTab::Files;
         self.show_sidebar = true;
+        self.snapshot_current_workspace();
     }
 
     /// Complete loading the file tree after asynchronous background scanning.
@@ -65,6 +69,7 @@ impl AppStore {
         if self.opened_folder.as_deref() == Some(dir) {
             self.file_tree = tree;
             self.is_loading_files = false;
+            self.snapshot_current_workspace();
         }
     }
 
@@ -81,10 +86,12 @@ impl AppStore {
         if let Ok(tree) = scan_file_tree(&dir, self.file_filter_mode) {
             self.file_tree = tree;
         }
-        self.opened_folder = Some(dir);
+        self.opened_folder = Some(dir.clone());
         self.sidebar_tab = SidebarTab::Files;
         self.show_sidebar = true;
         self.is_loading_files = false;
+        self.snapshot_current_workspace();
+        crate::state::kick_fts_rebuild_forced(dir, self.file_filter_mode);
     }
 
     /// Refresh file tree based on current opened folder and file filter mode.
@@ -113,6 +120,9 @@ impl AppStore {
         self.settings.file_filter_mode = mode;
         self.persist_settings();
         self.refresh_file_tree();
+        if let Some(dir) = self.opened_folder.clone() {
+            crate::state::kick_fts_rebuild_forced(dir, mode);
+        }
     }
 
     /// Cycle to the next file visibility filter mode.

@@ -24,6 +24,7 @@ eyre = "0.6"
 itertools = "0.14"
 rayon = "1.10"
 walkdir = "2.5"
+tantivy = "0.22"
 tokio = { version = "1", features = ["time", "sync", "rt"] }
 window-vibrancy = "0.5"
 self-replace = "1.5"

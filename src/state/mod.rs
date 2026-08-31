@@ -1,15 +1,19 @@
 mod files;
 mod layout;
 mod tabs;
+mod workspace;
 
 use crate::services::fs::scan_file_tree;
+use crate::services::fts;
 use crate::services::markdown::parse_markdown_document;
 use crate::services::settings::{load_settings, save_settings};
+use crate::services::workspace::load_workspaces;
 use crate::types::{
     AppSettings, AppTheme, DocumentMode, FileFilterMode, FileTreeEntry, Language, SidebarPosition,
-    SidebarTab, TabItem, UpdateStatus,
+    SidebarTab, TabItem, UpdateStatus, WorkspacesFile,
 };
 use dioxus::prelude::{spawn, Signal, WritableExt};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 pub const WELCOME_DOC: &str = include_str!("../assets/welcome.md");
@@ -35,11 +39,14 @@ pub struct AppStore {
     pub file_filter_mode: FileFilterMode,
     pub sticky_headers: bool,
     pub show_search: bool,
+    pub show_find_in_files: bool,
     pub show_settings_modal: bool,
     pub file_tree: Vec<FileTreeEntry>,
     pub is_loading_files: bool,
     pub opened_folder: Option<PathBuf>,
     pub pending_tree_scan: Option<PathBuf>,
+    pub expanded_dirs: HashSet<PathBuf>,
+    pub workspaces: WorkspacesFile,
     pub settings: AppSettings,
     pub update_status: UpdateStatus,
 }
@@ -48,6 +55,7 @@ impl Default for AppStore {
     fn default() -> Self {
         let welcome_parsed = parse_markdown_document(WELCOME_DOC);
         let settings = load_settings();
+        let workspaces = load_workspaces();
         Self {
             tabs: vec![TabItem {
                 id: 1,
@@ -56,6 +64,7 @@ impl Default for AppStore {
                 content: WELCOME_DOC.to_string(),
                 parsed: welcome_parsed,
                 is_dirty: false,
+                html_revision: 0,
             }],
             active_tab_id: 1,
             next_tab_id: 2,
@@ -73,11 +82,14 @@ impl Default for AppStore {
             file_filter_mode: settings.file_filter_mode,
             sticky_headers: settings.sticky_headers,
             show_search: false,
+            show_find_in_files: false,
             show_settings_modal: false,
             file_tree: Vec::new(),
             is_loading_files: false,
             opened_folder: None,
             pending_tree_scan: None,
+            expanded_dirs: HashSet::new(),
+            workspaces,
             settings,
             update_status: UpdateStatus::Idle,
         }
@@ -116,17 +128,9 @@ impl AppStore {
         };
 
         if let Some(path) = initial_path {
-            if path.is_dir() {
-                store.open_directory(path.to_path_buf());
-                if let Some(primary_doc) = find_primary_doc_in_dir(path) {
-                    store.open_file_from_path(primary_doc);
-                    store.tabs.retain(|t| t.id != 1);
-                }
-            } else {
-                store.open_file_from_path(path.to_path_buf());
-                // Remove the default welcome tab so only the requested file is open
-                store.tabs.retain(|t| t.id != 1);
-            }
+            store.boot_from_cli_path(path);
+        } else if !store.boot_restore_last_workspace() {
+            // keep default Welcome tab
         }
 
         store
@@ -192,18 +196,7 @@ pub fn execute_shortcut_action(mut store: Signal<AppStore>, action: crate::types
         ShortcutAction::OpenFolder => {
             spawn(async move {
                 if let Some(dir) = pick_folder_async().await {
-                    store.write().start_loading_directory(dir.clone());
-                    let filter_mode = store().file_filter_mode;
-                    let scan_dir = dir.clone();
-                    let tree_res = tokio::task::spawn_blocking(move || {
-                        scan_file_tree(&scan_dir, filter_mode)
-                    }).await;
-
-                    if let Ok(Ok(tree)) = tree_res {
-                        store.write().finish_loading_directory(&dir, tree);
-                    } else {
-                        store.write().set_loading_files(false);
-                    }
+                    store.write().switch_workspace(dir);
                 }
             });
         }
@@ -231,6 +224,9 @@ pub fn execute_shortcut_action(mut store: Signal<AppStore>, action: crate::types
                 ",
             );
         }
+        ShortcutAction::FindInFiles => {
+            store.write().set_find_in_files(true);
+        }
         ShortcutAction::FormatDocument => {
             store.write().format_active_tab();
         }
@@ -254,6 +250,8 @@ pub fn handle_escape_action(mut store: Signal<AppStore>) {
     let mut s = store.write();
     if s.show_settings_modal {
         s.set_settings_modal(false);
+    } else if s.show_find_in_files {
+        s.set_find_in_files(false);
     } else if s.is_zen {
         s.set_zen(false);
     } else if s.show_search {
@@ -269,8 +267,32 @@ pub async fn complete_directory_scan(mut store: Signal<AppStore>, dir: PathBuf) 
 
     if let Ok(Ok(tree)) = tree_res {
         store.write().finish_loading_directory(&dir, tree);
+        let filter = store().file_filter_mode;
+        kick_fts_rebuild_forced(dir, filter);
     } else {
         store.write().set_loading_files(false);
+    }
+}
+
+/// Drop FTS index and rebuild for a new workspace root.
+pub fn kick_fts_rebuild_forced(root: PathBuf, filter: FileFilterMode) {
+    crate::services::fts::drop_index();
+    std::thread::spawn(move || {
+        let _ = crate::services::fts::rebuild_root(root, filter);
+    });
+}
+
+/// Spawn a background rebuild of the session FTS index for the opened folder.
+pub fn kick_fts_rebuild(store: Signal<AppStore>) {
+    let root = store().opened_folder.clone();
+    let filter = store().file_filter_mode;
+    if let Some(dir) = root {
+        if fts::is_index_for(&dir) {
+            return;
+        }
+        kick_fts_rebuild_forced(dir, filter);
+    } else {
+        crate::services::fts::drop_index();
     }
 }
 
@@ -379,6 +401,10 @@ mod tests {
         assert!(store.sticky_headers);
         assert!(store.settings.sticky_headers);
 
+        assert!(!store.settings.line_wrap);
+        store.set_line_wrap(true);
+        assert!(store.settings.line_wrap);
+
         store.reset_settings_to_default();
         assert_eq!(store.settings.language, Language::En);
         assert_eq!(store.language, Language::En);
@@ -402,6 +428,9 @@ mod tests {
 
         store.update_active_tab_content("# Modified Title\n\nNew edited body text.".to_string());
         assert!(store.tabs[0].is_dirty);
+        assert_eq!(store.tabs[0].content, "# Modified Title\n\nNew edited body text.");
+
+        store.set_mode(DocumentMode::Source);
         assert_eq!(store.tabs[0].parsed.toc.len(), 1);
         assert_eq!(store.tabs[0].parsed.toc[0].title, "Modified Title");
     }

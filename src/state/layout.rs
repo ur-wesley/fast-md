@@ -57,6 +57,11 @@ impl AppStore {
         self.show_search = !self.show_search;
     }
 
+    /// Set workspace find-in-files overlay visibility.
+    pub const fn set_find_in_files(&mut self, show: bool) {
+        self.show_find_in_files = show;
+    }
+
     /// Set theme and persist.
     pub fn set_theme(&mut self, theme: AppTheme) {
         self.theme = theme;
@@ -125,6 +130,12 @@ impl AppStore {
     /// Set font size setting and persist.
     pub fn set_font_size(&mut self, size: u32) {
         self.settings.font_size = size;
+        self.persist_settings();
+    }
+
+    /// Set source editor line wrap and persist.
+    pub fn set_line_wrap(&mut self, line_wrap: bool) {
+        self.settings.line_wrap = line_wrap;
         self.persist_settings();
     }
 

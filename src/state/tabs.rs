@@ -1,5 +1,6 @@
 use super::AppStore;
 use crate::services::fs::save_document_file;
+use crate::services::fts;
 use crate::services::markdown::{parse_document, parse_markdown_document};
 use crate::types::{DocumentFormat, DocumentMode, TabItem};
 use std::path::{Path, PathBuf};
@@ -9,6 +10,7 @@ impl AppStore {
     pub fn select_tab(&mut self, id: usize) {
         if self.tabs.iter().any(|t| t.id == id) {
             self.active_tab_id = id;
+            self.snapshot_current_workspace();
         }
     }
 
@@ -25,6 +27,7 @@ impl AppStore {
                     self.active_tab_id = self.tabs[pos - 1].id;
                 }
             }
+            self.snapshot_current_workspace();
         }
     }
 
@@ -47,6 +50,7 @@ impl AppStore {
             content: String::new(),
             parsed,
             is_dirty: false,
+            html_revision: 0,
         });
         self.active_tab_id = tab_id;
     }
@@ -54,12 +58,39 @@ impl AppStore {
     /// Update active tab content when user types in editor or formats in WYSIWYG.
     pub fn update_active_tab_content(&mut self, new_content: String) {
         let active_id = self.active_tab_id;
+        let skip_parse = self.mode == DocumentMode::Wysiwyg;
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
             if tab.content != new_content {
                 tab.content = new_content;
-                let format = DocumentFormat::from_path(tab.path.as_deref());
-                tab.parsed = parse_document(&tab.content, format);
                 tab.is_dirty = true;
+                if !skip_parse {
+                    let format = DocumentFormat::from_path(tab.path.as_deref());
+                    tab.parsed = parse_document(&tab.content, format);
+                }
+            }
+        }
+    }
+
+    fn reparse_active_tab(&mut self) {
+        let active_id = self.active_tab_id;
+        if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+            let format = DocumentFormat::from_path(tab.path.as_deref());
+            tab.parsed = parse_document(&tab.content, format);
+        }
+    }
+
+    fn bump_active_tab_html_revision(&mut self) {
+        let active_id = self.active_tab_id;
+        if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+            tab.html_revision = tab.html_revision.wrapping_add(1);
+        }
+    }
+
+    fn sync_mode_transition(&mut self, prev: DocumentMode, next: DocumentMode) {
+        if prev == DocumentMode::Wysiwyg || next == DocumentMode::Wysiwyg {
+            self.reparse_active_tab();
+            if next == DocumentMode::Wysiwyg {
+                self.bump_active_tab_html_revision();
             }
         }
     }
@@ -120,6 +151,7 @@ impl AppStore {
                 let format = DocumentFormat::from_path(tab.path.as_deref());
                 tab.parsed = parse_document(&tab.content, format);
                 tab.is_dirty = true;
+                tab.html_revision = tab.html_revision.wrapping_add(1);
             }
         }
     }
@@ -134,6 +166,7 @@ impl AppStore {
                     tab.content = formatted;
                     tab.parsed = parse_document(&tab.content, format);
                     tab.is_dirty = true;
+                    tab.html_revision = tab.html_revision.wrapping_add(1);
                 }
             }
         }
@@ -150,6 +183,11 @@ impl AppStore {
             if let Some(ref path) = tab.path {
                 save_document_file(path, &tab.content)?;
                 tab.is_dirty = false;
+                let path = path.clone();
+                let content = tab.content.clone();
+                std::thread::spawn(move || {
+                    let _ = fts::upsert_path(&path, &content);
+                });
                 return Ok(true);
             }
         }
@@ -191,13 +229,21 @@ impl AppStore {
     }
 
     /// Set document viewing/editing mode.
-    pub const fn set_mode(&mut self, mode: DocumentMode) {
-        self.mode = mode;
+    pub fn set_mode(&mut self, mode: DocumentMode) {
+        let prev = self.mode;
+        if prev != mode {
+            self.mode = mode;
+            self.sync_mode_transition(prev, mode);
+        }
     }
 
     /// Cycle to the next document viewing/editing mode.
-    pub const fn cycle_mode(&mut self) {
+    pub fn cycle_mode(&mut self) {
+        let prev = self.mode;
         self.mode = self.mode.next();
+        if prev != self.mode {
+            self.sync_mode_transition(prev, self.mode);
+        }
     }
 
     /// Set and persist default startup document mode.
@@ -215,6 +261,12 @@ impl AppStore {
                     let format = DocumentFormat::from_path(Some(p));
                     tab.parsed = parse_document(new_content, format);
                     tab.is_dirty = false;
+                    tab.html_revision = tab.html_revision.wrapping_add(1);
+                    let path = p.clone();
+                    let content = new_content.to_string();
+                    std::thread::spawn(move || {
+                        let _ = fts::upsert_path(&path, &content);
+                    });
                 }
             }
         }

@@ -22,6 +22,10 @@ pub struct TitleBarTranslations {
     pub restore: &'static str,
     pub close: &'static str,
     pub workspace: &'static str,
+    pub workspace_search_placeholder: &'static str,
+    pub workspace_this_window: &'static str,
+    pub workspace_recent_projects: &'static str,
+    pub workspace_open_folder: &'static str,
     pub shortcut_ctrl_f: &'static str,
     pub update_available_badge: &'static str,
 }
@@ -169,6 +173,18 @@ pub struct SearchBarTranslations {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FindInFilesTranslations {
+    pub title: &'static str,
+    pub placeholder: &'static str,
+    pub indexing: &'static str,
+    pub searching: &'static str,
+    pub type_to_search: &'static str,
+    pub no_results: &'static str,
+    pub no_results_desc: &'static str,
+    pub close: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SettingsTranslations {
     pub modal_title: &'static str,
     pub auto_save_notice: &'static str,
@@ -230,6 +246,8 @@ pub struct SettingsTranslations {
     pub zoom_desc: &'static str,
     pub font_size_title: &'static str,
     pub font_size_desc: &'static str,
+    pub line_wrap_title: &'static str,
+    pub line_wrap_desc: &'static str,
     pub auto_reload_title: &'static str,
     pub auto_reload_desc: &'static str,
     pub sticky_headers_title: &'static str,
@@ -328,6 +346,8 @@ pub struct ShortcutsTranslations {
     pub action_cycle_mode_desc: &'static str,
     pub action_find: &'static str,
     pub action_find_desc: &'static str,
+    pub action_find_in_files: &'static str,
+    pub action_find_in_files_desc: &'static str,
     pub action_format_document: &'static str,
     pub action_format_document_desc: &'static str,
     pub action_zoom_in: &'static str,
@@ -354,6 +374,7 @@ impl ShortcutsTranslations {
             crate::types::ShortcutAction::ToggleZen => self.action_toggle_zen,
             crate::types::ShortcutAction::CycleMode => self.action_cycle_mode,
             crate::types::ShortcutAction::Find => self.action_find,
+            crate::types::ShortcutAction::FindInFiles => self.action_find_in_files,
             crate::types::ShortcutAction::FormatDocument => self.action_format_document,
             crate::types::ShortcutAction::ZoomIn => self.action_zoom_in,
             crate::types::ShortcutAction::ZoomOut => self.action_zoom_out,
@@ -375,6 +396,7 @@ impl ShortcutsTranslations {
             crate::types::ShortcutAction::ToggleZen => self.action_toggle_zen_desc,
             crate::types::ShortcutAction::CycleMode => self.action_cycle_mode_desc,
             crate::types::ShortcutAction::Find => self.action_find_desc,
+            crate::types::ShortcutAction::FindInFiles => self.action_find_in_files_desc,
             crate::types::ShortcutAction::FormatDocument => self.action_format_document_desc,
             crate::types::ShortcutAction::ZoomIn => self.action_zoom_in_desc,
             crate::types::ShortcutAction::ZoomOut => self.action_zoom_out_desc,
@@ -406,6 +428,7 @@ pub struct Translations {
     pub frontmatter: FrontmatterTranslations,
     pub zen: ZenTranslations,
     pub search_bar: SearchBarTranslations,
+    pub find_in_files: FindInFilesTranslations,
     pub settings: SettingsTranslations,
     pub context_menu: ContextMenuTranslations,
     pub shortcuts: ShortcutsTranslations,

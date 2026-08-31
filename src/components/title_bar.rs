@@ -1,4 +1,5 @@
 use crate::components::Hint;
+use crate::components::WorkspaceSwitcher;
 use crate::state::AppStore;
 use crate::ui::badge::{Badge, BadgeVariant};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
@@ -18,18 +19,6 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
     let mut store = props.store;
     let store_read = store();
     let t = store_read.language.strings();
-
-    let active_tab = store_read.active_tab();
-    let doc_title = active_tab.map_or_else(|| "Fast-MD".to_string(), |t| t.title.clone());
-
-    let breadcrumb = if let Some(ref folder) = store_read.opened_folder {
-        let folder_name = folder
-            .file_name()
-            .map_or_else(|| t.title_bar.workspace.to_string(), |f| f.to_string_lossy().to_string());
-        format!("{folder_name} / {doc_title}")
-    } else {
-        doc_title
-    };
 
     let is_maximized = window().is_maximized();
     let query_val = search_query();
@@ -103,29 +92,7 @@ pub fn TitleBar(props: TitleBarProps) -> Element {
 
                 div { class: "titlebar-divider w-[1px] h-3.5 bg-[var(--border-color)] shrink-0" }
 
-                div {
-                    class: "titlebar-breadcrumb inline-flex items-center gap-1.5 max-w-[280px] text-[11px] text-[var(--text-muted)] bg-[var(--bg-subtle)] px-2 py-0.5 rounded border border-[var(--border-subtle)] overflow-hidden",
-                    title: "{breadcrumb}",
-                    svg {
-                        class: "breadcrumb-doc-icon text-[var(--accent)] shrink-0",
-                        view_box: "0 0 24 24",
-                        width: "12",
-                        height: "12",
-                        path {
-                            d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
-                            fill: "none",
-                            stroke: "currentColor",
-                            stroke_width: "2",
-                        }
-                        path {
-                            d: "M14 2v6h6",
-                            fill: "none",
-                            stroke: "currentColor",
-                            stroke_width: "2",
-                        }
-                    }
-                    span { class: "breadcrumb-text truncate", "{breadcrumb}" }
-                }
+                WorkspaceSwitcher { store: store }
             }
 
             // Center Section: Interactive Title Bar Search Box

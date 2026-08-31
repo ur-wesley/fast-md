@@ -14,6 +14,7 @@ pub enum ShortcutAction {
     ToggleZen,
     CycleMode,
     Find,
+    FindInFiles,
     FormatDocument,
     ZoomIn,
     ZoomOut,
@@ -36,6 +37,7 @@ impl ShortcutAction {
             Self::ToggleZen,
             Self::CycleMode,
             Self::Find,
+            Self::FindInFiles,
             Self::FormatDocument,
             Self::ZoomIn,
             Self::ZoomOut,
@@ -52,7 +54,7 @@ impl ShortcutAction {
                 ShortcutCategory::FileAndTabs
             }
             Self::ToggleSidebar | Self::ToggleZen | Self::CycleMode => ShortcutCategory::LayoutAndModes,
-            Self::Find | Self::FormatDocument => ShortcutCategory::EditorAndSearch,
+            Self::Find | Self::FindInFiles | Self::FormatDocument => ShortcutCategory::EditorAndSearch,
             Self::ZoomIn | Self::ZoomOut | Self::ResetZoom | Self::ToggleSettings => {
                 ShortcutCategory::ViewAndPreferences
             }
@@ -73,6 +75,7 @@ impl ShortcutAction {
             Self::ToggleZen => "Ctrl+Shift+F",
             Self::CycleMode => "Ctrl+E",
             Self::Find => "Ctrl+F",
+            Self::FindInFiles => "Ctrl+Shift+G",
             Self::FormatDocument => "Shift+Alt+F",
             Self::ZoomIn => "Ctrl+=",
             Self::ZoomOut => "Ctrl+-",
@@ -283,6 +286,9 @@ pub struct ShortcutsConfig {
     #[serde(default = "default_find")]
     pub find: String,
 
+    #[serde(default = "default_find_in_files")]
+    pub find_in_files: String,
+
     #[serde(default = "default_format_document")]
     pub format_document: String,
 
@@ -329,6 +335,9 @@ fn default_cycle_mode() -> String {
 fn default_find() -> String {
     ShortcutAction::Find.default_binding().to_string()
 }
+fn default_find_in_files() -> String {
+    ShortcutAction::FindInFiles.default_binding().to_string()
+}
 fn default_format_document() -> String {
     ShortcutAction::FormatDocument.default_binding().to_string()
 }
@@ -358,6 +367,7 @@ impl Default for ShortcutsConfig {
             toggle_zen: default_toggle_zen(),
             cycle_mode: default_cycle_mode(),
             find: default_find(),
+            find_in_files: default_find_in_files(),
             format_document: default_format_document(),
             zoom_in: default_zoom_in(),
             zoom_out: default_zoom_out(),
@@ -382,6 +392,7 @@ impl ShortcutsConfig {
             ShortcutAction::ToggleZen => &self.toggle_zen,
             ShortcutAction::CycleMode => &self.cycle_mode,
             ShortcutAction::Find => &self.find,
+            ShortcutAction::FindInFiles => &self.find_in_files,
             ShortcutAction::FormatDocument => &self.format_document,
             ShortcutAction::ZoomIn => &self.zoom_in,
             ShortcutAction::ZoomOut => &self.zoom_out,
@@ -403,6 +414,7 @@ impl ShortcutsConfig {
             ShortcutAction::ToggleZen => self.toggle_zen = binding,
             ShortcutAction::CycleMode => self.cycle_mode = binding,
             ShortcutAction::Find => self.find = binding,
+            ShortcutAction::FindInFiles => self.find_in_files = binding,
             ShortcutAction::FormatDocument => self.format_document = binding,
             ShortcutAction::ZoomIn => self.zoom_in = binding,
             ShortcutAction::ZoomOut => self.zoom_out = binding,

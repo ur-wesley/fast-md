@@ -19,6 +19,7 @@ A lightweight, native desktop Markdown and MDX viewer built with Dioxus 0.6 and 
 | :---------------------- | :-------------------- | :----------------- |
 | `Ctrl + O`              | `Cmd + O`             | Open file          |
 | `Ctrl + F`              | `Cmd + F`             | Search in document |
+| `Ctrl + Shift + G`      | `Cmd + Shift + G`     | Find in files      |
 | `Ctrl + T`              | `Cmd + T`             | New tab            |
 | `Ctrl + W`              | `Cmd + W`             | Close active tab   |
 | `Ctrl + +` / `Ctrl + =` | `Cmd + +` / `Cmd + =` | Zoom in            |

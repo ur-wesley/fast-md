@@ -1,8 +1,8 @@
 use super::{
-    CommonTranslations, ContextMenuTranslations, EditorTranslations, FrontmatterTranslations,
-    SearchBarTranslations, SettingsTranslations, ShortcutsTranslations, SidebarTranslations,
-    StatusBarTranslations, TabBarTranslations, TitleBarTranslations, ToolbarTranslations,
-    Translations, ZenTranslations,
+    CommonTranslations, ContextMenuTranslations, EditorTranslations, FindInFilesTranslations,
+    FrontmatterTranslations, SearchBarTranslations, SettingsTranslations, ShortcutsTranslations,
+    SidebarTranslations, StatusBarTranslations, TabBarTranslations, TitleBarTranslations,
+    ToolbarTranslations, Translations, ZenTranslations,
 };
 
 pub const DE: Translations = Translations {
@@ -22,6 +22,10 @@ pub const DE: Translations = Translations {
         restore: "Wiederherstellen",
         close: "Schließen",
         workspace: "Arbeitsbereich",
+        workspace_search_placeholder: "Projekte suchen...",
+        workspace_this_window: "Dieses Fenster",
+        workspace_recent_projects: "Letzte Projekte",
+        workspace_open_folder: "Lokalen Ordner öffnen",
         shortcut_ctrl_f: "Strg F",
         update_available_badge: "Update verfügbar",
     },
@@ -151,6 +155,16 @@ pub const DE: Translations = Translations {
         next_match: "Nächster Treffer (Eingabe)",
         close_search: "Suche schließen (Esc)",
     },
+    find_in_files: FindInFilesTranslations {
+        title: "In Dateien suchen",
+        placeholder: "Arbeitsbereich durchsuchen...",
+        indexing: "Dateien werden indexiert...",
+        searching: "Suche läuft...",
+        type_to_search: "Suchbegriff eingeben (Ordner und Tabs)",
+        no_results: "Keine Treffer",
+        no_results_desc: "Andere Begriffe versuchen oder zuerst einen Ordner öffnen.",
+        close: "Schließen",
+    },
     settings: SettingsTranslations {
         modal_title: "Einstellungen & Optionen",
         auto_save_notice: "Wird automatisch in settings.json gespeichert",
@@ -212,6 +226,8 @@ pub const DE: Translations = Translations {
         zoom_desc: "Skaliert Typografie und eingebettete Bilder.",
         font_size_title: "Basis-Schriftgröße",
         font_size_desc: "Schriftgröße für Fließtext und Absätze.",
+        line_wrap_title: "Zeilenumbruch",
+        line_wrap_desc: "Lange Zeilen im Quelltext umbrechen statt horizontal zu scrollen.",
         auto_reload_title: "Live-Neu-Laden",
         auto_reload_desc: "Dokument bei Änderungen auf der Festplatte automatisch neu laden.",
         sticky_headers_title: "Fixierte Überschriften",
@@ -306,6 +322,8 @@ pub const DE: Translations = Translations {
         action_cycle_mode_desc: "Zwischen Ansicht, Geteilt, Editor und Quelltext wechseln",
         action_find: "Im Dokument suchen",
         action_find_desc: "Suchfeld im Titel fokussieren und Treffer hervorheben",
+        action_find_in_files: "In Dateien suchen",
+        action_find_in_files_desc: "Dokumentinhalte im Arbeitsbereich durchsuchen",
         action_format_document: "Dokument formatieren",
         action_format_document_desc: "Markdown-Quelltext sauber ausrichten und Tabellen formatieren",
         action_zoom_in: "Vergrößern",

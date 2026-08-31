@@ -53,6 +53,7 @@
             keyLower === 'e' ||
             keyLower === 'b' ||
             keyLower === 'f' ||
+            keyLower === 'g' ||
             keyLower === ',' ||
             keyLower === '<' ||
             keyLower === '=' ||
@@ -65,6 +66,10 @@
             e.preventDefault();
         } else if (isEscape) {
             // Escape can be handled globally
+        }
+
+        if ((e.ctrlKey || e.metaKey) && keyLower === 'e' && window.flushWysiwygContent) {
+            window.flushWysiwygContent();
         }
 
         if (window.__globalShortcutHandler) {

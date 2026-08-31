@@ -187,6 +187,10 @@ pub struct AppSettings {
     #[serde(default = "default_font_size")]
     pub font_size: u32,
 
+    /// Soft-wrap long lines in the source editor instead of horizontal scrolling.
+    #[serde(default)]
+    pub line_wrap: bool,
+
     /// Default startup document viewing/editing mode.
     #[serde(default)]
     pub default_mode: DocumentMode,
@@ -236,6 +240,7 @@ impl Default for AppSettings {
             auto_reload: default_true(),
             sticky_headers: false,
             font_size: default_font_size(),
+            line_wrap: false,
             default_mode: DocumentMode::View,
             format_on_save: default_true(),
             font_family: None,
@@ -415,6 +420,7 @@ mod tests {
         assert!(parsed.auto_reload);
         assert!(parsed.sticky_headers);
         assert_eq!(parsed.font_size, 16);
+        assert!(!parsed.line_wrap);
         assert!(parsed.format_on_save);
         assert_eq!(parsed.shortcuts, ShortcutsConfig::default());
     }

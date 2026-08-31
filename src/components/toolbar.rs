@@ -1,5 +1,5 @@
 use crate::services::fs::{
-    pick_file_async, pick_folder_async, pick_save_file_async, scan_file_tree,
+    pick_file_async, pick_folder_async, pick_save_file_async,
 };
 use crate::state::{kick_pending_tree_scan, AppStore};
 use crate::types::DocumentMode;
@@ -69,18 +69,7 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
                         onclick: move |_| {
                             spawn(async move {
                                 if let Some(dir) = pick_folder_async().await {
-                                    store.write().start_loading_directory(dir.clone());
-                                    let filter_mode = store().file_filter_mode;
-                                    let scan_dir = dir.clone();
-                                    let tree_res = tokio::task::spawn_blocking(move || {
-                                        scan_file_tree(&scan_dir, filter_mode)
-                                    }).await;
-
-                                    if let Ok(Ok(tree)) = tree_res {
-                                        store.write().finish_loading_directory(&dir, tree);
-                                    } else {
-                                        store.write().set_loading_files(false);
-                                    }
+                                    store.write().switch_workspace(dir);
                                 }
                             });
                         },
@@ -160,7 +149,12 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
                         button {
                             class: if current_mode == DocumentMode::View { "toolbar-integrated-btn active" } else { "toolbar-integrated-btn" },
                             title: "{t.toolbar.mode_view}",
-                            onclick: move |_| store.write().set_mode(DocumentMode::View),
+                            onclick: move |_| {
+                                dioxus::prelude::document::eval(
+                                    "window.prepareDocumentModeChange && window.prepareDocumentModeChange();",
+                                );
+                                store.write().set_mode(DocumentMode::View);
+                            },
                             Icon { width: 13, height: 13, icon: LdBookOpen }
                             span { class: "btn-text", "{t.toolbar.mode_view}" }
                         }
@@ -174,7 +168,12 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
                         button {
                             class: if current_mode == DocumentMode::Split { "toolbar-integrated-btn active" } else { "toolbar-integrated-btn" },
                             title: "{t.toolbar.mode_split}",
-                            onclick: move |_| store.write().set_mode(DocumentMode::Split),
+                            onclick: move |_| {
+                                dioxus::prelude::document::eval(
+                                    "window.prepareDocumentModeChange && window.prepareDocumentModeChange();",
+                                );
+                                store.write().set_mode(DocumentMode::Split);
+                            },
                             Icon { width: 13, height: 13, icon: LdColumns2 }
                             span { class: "btn-text", "{t.toolbar.mode_split}" }
                         }
@@ -188,7 +187,12 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
                         button {
                             class: if current_mode == DocumentMode::Wysiwyg { "toolbar-integrated-btn active" } else { "toolbar-integrated-btn" },
                             title: "{t.toolbar.mode_wysiwyg}",
-                            onclick: move |_| store.write().set_mode(DocumentMode::Wysiwyg),
+                            onclick: move |_| {
+                                dioxus::prelude::document::eval(
+                                    "window.prepareDocumentModeChange && window.prepareDocumentModeChange();",
+                                );
+                                store.write().set_mode(DocumentMode::Wysiwyg);
+                            },
                             Icon { width: 13, height: 13, icon: LdSparkles }
                             span { class: "btn-text", "{t.toolbar.mode_wysiwyg}" }
                         }
@@ -202,7 +206,12 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
                         button {
                             class: if current_mode == DocumentMode::Source { "toolbar-integrated-btn active" } else { "toolbar-integrated-btn" },
                             title: "{t.toolbar.mode_source}",
-                            onclick: move |_| store.write().set_mode(DocumentMode::Source),
+                            onclick: move |_| {
+                                dioxus::prelude::document::eval(
+                                    "window.prepareDocumentModeChange && window.prepareDocumentModeChange();",
+                                );
+                                store.write().set_mode(DocumentMode::Source);
+                            },
                             Icon { width: 13, height: 13, icon: LdFileCode2 }
                             span { class: "btn-text", "{t.toolbar.mode_source}" }
                         }
