@@ -164,3 +164,23 @@ pub async fn pick_save_file_async(default_name: &str) -> Option<PathBuf> {
 
     handle.map(|h| h.path().to_path_buf())
 }
+
+/// Prompt save dialog and export document as standalone HTML file.
+pub async fn export_tab_html_async(
+    title: &str,
+    html_content: &str,
+    theme_str: &str,
+    custom_accent_style: &str,
+    app_styles: &str,
+) -> Result<Option<PathBuf>> {
+    let clean_title = title.replace(".md", "").replace(".mdx", "");
+    if let Some(save_path) = pick_export_html_async(&format!("{clean_title}.html")).await {
+        let standalone_html = format!(
+            "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>{clean_title}</title>\n<style>{app_styles}</style>\n</head>\n<body class=\"{theme_str}\" style=\"{custom_accent_style}\">\n<div class=\"viewer-container reading-width\">\n<article class=\"markdown-body\">\n{html_content}\n</article>\n</div>\n</body>\n</html>"
+        );
+        save_document_file(&save_path, &standalone_html)?;
+        Ok(Some(save_path))
+    } else {
+        Ok(None)
+    }
+}
