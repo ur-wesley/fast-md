@@ -29,7 +29,7 @@ impl DocumentMode {
         match self {
             Self::View => "View",
             Self::Split => "Split Preview",
-            Self::Wysiwyg => "WYSIWYG",
+            Self::Wysiwyg => "Editor",
             Self::Source => "Source",
         }
     }
@@ -178,5 +178,51 @@ impl Language {
     #[allow(dead_code)]
     pub const fn strings(self) -> &'static crate::i18n::Translations {
         crate::i18n::t(self)
+    }
+}
+
+/// Check if a hex color is bright/light based on standard relative luminance.
+#[must_use]
+pub fn is_color_bright(hex: &str) -> bool {
+    let clean = hex.trim_start_matches('#');
+    if clean.len() < 6 {
+        return false;
+    }
+    let r = u8::from_str_radix(&clean[0..2], 16).unwrap_or(0) as f32;
+    let g = u8::from_str_radix(&clean[2..4], 16).unwrap_or(0) as f32;
+    let b = u8::from_str_radix(&clean[4..6], 16).unwrap_or(0) as f32;
+
+    // Perceived luminance formula (ITU-R BT.709)
+    let luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+    luminance > 0.55
+}
+
+/// Calculate appropriate readable foreground text color (#111827 or #ffffff) for a given accent color.
+#[must_use]
+pub fn accent_contrast_text_color(hex: &str) -> &'static str {
+    if is_color_bright(hex) {
+        "#111827"
+    } else {
+        "#ffffff"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_accent_contrast_text_color() {
+        // Bright/light colors -> dark text
+        assert_eq!(accent_contrast_text_color("#ffffff"), "#111827");
+        assert_eq!(accent_contrast_text_color("#ffff00"), "#111827");
+        assert_eq!(accent_contrast_text_color("#88c0d0"), "#111827"); // Nord frost
+        assert_eq!(accent_contrast_text_color("#cba6f7"), "#111827"); // Catppuccin Mocha Mauve
+
+        // Dark/deep colors -> white text
+        assert_eq!(accent_contrast_text_color("#000000"), "#ffffff");
+        assert_eq!(accent_contrast_text_color("#0969da"), "#ffffff"); // GitHub light blue
+        assert_eq!(accent_contrast_text_color("#8839ef"), "#ffffff"); // Catppuccin latte dark purple
+        assert_eq!(accent_contrast_text_color("#268bd2"), "#ffffff"); // Solarized blue
     }
 }

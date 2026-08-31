@@ -1,4 +1,4 @@
-use super::{AppTheme, DocumentMode, Language};
+use super::{AppTheme, DocumentMode, Language, ShortcutsConfig};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -10,6 +10,35 @@ pub enum SidebarTab {
     #[default]
     Toc,
     Files,
+}
+
+/// Sidebar position (Left or Right side of workspace).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SidebarPosition {
+    #[default]
+    Left,
+    Right,
+}
+
+impl SidebarPosition {
+    #[must_use]
+    pub const fn is_left(self) -> bool {
+        matches!(self, Self::Left)
+    }
+
+    #[must_use]
+    pub const fn is_right(self) -> bool {
+        matches!(self, Self::Right)
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Left => "left",
+            Self::Right => "right",
+        }
+    }
 }
 
 /// File visibility filter mode in the sidebar file explorer.
@@ -134,6 +163,10 @@ pub struct AppSettings {
     #[serde(default)]
     pub sidebar_tab: SidebarTab,
 
+    /// Sidebar position (Left or Right).
+    #[serde(default)]
+    pub sidebar_position: SidebarPosition,
+
     /// Sidebar width in pixels.
     #[serde(default = "default_sidebar_width")]
     pub sidebar_width: u32,
@@ -181,6 +214,10 @@ pub struct AppSettings {
     /// Automatically check for application updates on startup.
     #[serde(default = "default_true")]
     pub auto_check_updates: bool,
+
+    /// Configurable keyboard shortcuts for app actions.
+    #[serde(default)]
+    pub shortcuts: ShortcutsConfig,
 }
 
 impl Default for AppSettings {
@@ -193,6 +230,7 @@ impl Default for AppSettings {
             zoom_level: default_zoom(),
             show_sidebar: default_true(),
             sidebar_tab: SidebarTab::Toc,
+            sidebar_position: SidebarPosition::Left,
             sidebar_width: default_sidebar_width(),
             file_filter_mode: FileFilterMode::MarkdownAndConfig,
             auto_reload: default_true(),
@@ -205,6 +243,7 @@ impl Default for AppSettings {
             recent_folders: Vec::new(),
             custom_css: None,
             auto_check_updates: default_true(),
+            shortcuts: ShortcutsConfig::default(),
         }
     }
 }
@@ -372,10 +411,31 @@ mod tests {
         assert_eq!(parsed.zoom_level, 100);
         assert!(parsed.show_sidebar);
         assert_eq!(parsed.sidebar_tab, SidebarTab::Toc);
+        assert_eq!(parsed.sidebar_position, SidebarPosition::Left);
         assert!(parsed.auto_reload);
         assert!(parsed.sticky_headers);
         assert_eq!(parsed.font_size, 16);
         assert!(parsed.format_on_save);
+        assert_eq!(parsed.shortcuts, ShortcutsConfig::default());
+    }
+
+    #[test]
+    fn test_sidebar_position() {
+        assert_eq!(SidebarPosition::Left.as_str(), "left");
+        assert_eq!(SidebarPosition::Right.as_str(), "right");
+        assert!(SidebarPosition::Left.is_left());
+        assert!(!SidebarPosition::Left.is_right());
+        assert!(SidebarPosition::Right.is_right());
+        assert!(!SidebarPosition::Right.is_left());
+
+        let json_left = serde_json::to_string(&SidebarPosition::Left).unwrap_or_default();
+        assert_eq!(json_left, "\"left\"");
+
+        let json_right = serde_json::to_string(&SidebarPosition::Right).unwrap_or_default();
+        assert_eq!(json_right, "\"right\"");
+
+        let parsed: SidebarPosition = serde_json::from_str("\"right\"").unwrap_or_default();
+        assert_eq!(parsed, SidebarPosition::Right);
     }
 
     #[test]
@@ -427,7 +487,7 @@ mod tests {
 
         assert_eq!(DocumentMode::View.label(), "View");
         assert_eq!(DocumentMode::Split.label(), "Split Preview");
-        assert_eq!(DocumentMode::Wysiwyg.label(), "WYSIWYG");
+        assert_eq!(DocumentMode::Wysiwyg.label(), "Editor");
         assert_eq!(DocumentMode::Source.label(), "Source");
 
         let json_wysiwyg = serde_json::to_string(&DocumentMode::Wysiwyg).unwrap_or_default();
