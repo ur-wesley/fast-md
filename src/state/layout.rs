@@ -1,5 +1,5 @@
 use super::AppStore;
-use crate::types::{AppTheme, Language, SidebarTab, UpdateStatus};
+use crate::types::{AppTheme, Language, SidebarPosition, SidebarTab, UpdateStatus};
 
 impl AppStore {
     /// Zoom in by 10% (up to 250%).
@@ -86,6 +86,13 @@ impl AppStore {
         self.persist_settings();
     }
 
+    /// Set sidebar position (Left or Right) and persist.
+    pub fn set_sidebar_position(&mut self, pos: SidebarPosition) {
+        self.sidebar_position = pos;
+        self.settings.sidebar_position = pos;
+        self.persist_settings();
+    }
+
     /// Set sidebar width and persist.
     pub fn set_sidebar_width(&mut self, width: u32) {
         let clamped = width.clamp(180, 560);
@@ -150,6 +157,7 @@ impl AppStore {
         self.zoom_level = defaults.zoom_level;
         self.show_sidebar = defaults.show_sidebar;
         self.sidebar_tab = defaults.sidebar_tab;
+        self.sidebar_position = defaults.sidebar_position;
         self.sidebar_width = defaults.sidebar_width;
         self.file_filter_mode = defaults.file_filter_mode;
         self.sticky_headers = defaults.sticky_headers;
@@ -159,4 +167,23 @@ impl AppStore {
         self.persist_settings();
         self.refresh_file_tree();
     }
+
+    /// Set a custom keybinding for a shortcut action and persist.
+    pub fn set_shortcut(&mut self, action: crate::types::ShortcutAction, binding: String) {
+        self.settings.shortcuts.set_binding(action, binding);
+        self.persist_settings();
+    }
+
+    /// Reset a single shortcut action to its default keybinding and persist.
+    pub fn reset_shortcut(&mut self, action: crate::types::ShortcutAction) {
+        self.settings.shortcuts.reset_action(action);
+        self.persist_settings();
+    }
+
+    /// Reset all shortcut keybindings to defaults and persist.
+    pub fn reset_all_shortcuts(&mut self) {
+        self.settings.shortcuts.reset_all();
+        self.persist_settings();
+    }
 }
+

@@ -6,8 +6,8 @@ use crate::services::fs::scan_file_tree;
 use crate::services::markdown::parse_markdown_document;
 use crate::services::settings::{load_settings, save_settings};
 use crate::types::{
-    AppSettings, AppTheme, DocumentMode, FileFilterMode, FileTreeEntry, Language, SidebarTab,
-    TabItem, UpdateStatus,
+    AppSettings, AppTheme, DocumentMode, FileFilterMode, FileTreeEntry, Language, SidebarPosition,
+    SidebarTab, TabItem, UpdateStatus,
 };
 use dioxus::prelude::{spawn, Signal, WritableExt};
 use std::path::{Path, PathBuf};
@@ -30,6 +30,7 @@ pub struct AppStore {
     pub zoom_level: u32,
     pub show_sidebar: bool,
     pub sidebar_tab: SidebarTab,
+    pub sidebar_position: SidebarPosition,
     pub sidebar_width: u32,
     pub file_filter_mode: FileFilterMode,
     pub sticky_headers: bool,
@@ -67,6 +68,7 @@ impl Default for AppStore {
             zoom_level: settings.zoom_level,
             show_sidebar: settings.show_sidebar,
             sidebar_tab: settings.sidebar_tab,
+            sidebar_position: settings.sidebar_position,
             sidebar_width: settings.sidebar_width,
             file_filter_mode: settings.file_filter_mode,
             sticky_headers: settings.sticky_headers,
@@ -105,6 +107,7 @@ impl AppStore {
             zoom_level: settings.zoom_level,
             show_sidebar: settings.show_sidebar,
             sidebar_tab: settings.sidebar_tab,
+            sidebar_position: settings.sidebar_position,
             sidebar_width: settings.sidebar_width,
             file_filter_mode: settings.file_filter_mode,
             sticky_headers: settings.sticky_headers,
@@ -141,6 +144,120 @@ impl AppStore {
     #[must_use]
     pub fn active_tab(&self) -> Option<&TabItem> {
         self.tabs.iter().find(|t| t.id == self.active_tab_id)
+    }
+}
+
+/// Dispatch an application shortcut action globally.
+pub fn execute_shortcut_action(mut store: Signal<AppStore>, action: crate::types::ShortcutAction) {
+    use crate::services::fs::{pick_file_async, pick_folder_async, pick_save_file_async};
+    use crate::types::ShortcutAction;
+
+    match action {
+        ShortcutAction::Save => {
+            spawn(async move {
+                let s = store();
+                if let Some(active) = s.active_tab() {
+                    if active.path.is_some() {
+                        let _ = store.write().save_active_tab();
+                    } else {
+                        let title = active.title.clone();
+                        if let Some(path) = pick_save_file_async(&title).await {
+                            let id = active.id;
+                            let _ = store.write().save_tab_with_path(id, path);
+                        }
+                    }
+                }
+            });
+        }
+        ShortcutAction::SaveAs => {
+            spawn(async move {
+                let s = store();
+                if let Some(active) = s.active_tab() {
+                    let title = active.title.clone();
+                    if let Some(path) = pick_save_file_async(&title).await {
+                        let id = active.id;
+                        let _ = store.write().save_tab_with_path(id, path);
+                    }
+                }
+            });
+        }
+        ShortcutAction::OpenFile => {
+            spawn(async move {
+                if let Some(path) = pick_file_async().await {
+                    store.write().open_file_from_path(path);
+                    kick_pending_tree_scan(store);
+                }
+            });
+        }
+        ShortcutAction::OpenFolder => {
+            spawn(async move {
+                if let Some(dir) = pick_folder_async().await {
+                    store.write().start_loading_directory(dir.clone());
+                    let filter_mode = store().file_filter_mode;
+                    let scan_dir = dir.clone();
+                    let tree_res = tokio::task::spawn_blocking(move || {
+                        scan_file_tree(&scan_dir, filter_mode)
+                    }).await;
+
+                    if let Ok(Ok(tree)) = tree_res {
+                        store.write().finish_loading_directory(&dir, tree);
+                    } else {
+                        store.write().set_loading_files(false);
+                    }
+                }
+            });
+        }
+        ShortcutAction::NewTab => {
+            store.write().new_empty_tab();
+        }
+        ShortcutAction::CloseTab => {
+            let id = store().active_tab_id;
+            store.write().close_tab(id);
+        }
+        ShortcutAction::ToggleSidebar => {
+            store.write().toggle_sidebar();
+        }
+        ShortcutAction::ToggleZen => {
+            store.write().toggle_zen();
+        }
+        ShortcutAction::CycleMode => {
+            store.write().cycle_mode();
+        }
+        ShortcutAction::Find => {
+            let _ = dioxus::prelude::document::eval(
+                r"
+                const input = document.getElementById('titlebar-search-input');
+                if (input) { input.focus(); input.select(); }
+                ",
+            );
+        }
+        ShortcutAction::FormatDocument => {
+            store.write().format_active_tab();
+        }
+        ShortcutAction::ZoomIn => {
+            store.write().zoom_in();
+        }
+        ShortcutAction::ZoomOut => {
+            store.write().zoom_out();
+        }
+        ShortcutAction::ResetZoom => {
+            store.write().reset_zoom();
+        }
+        ShortcutAction::ToggleSettings => {
+            store.write().toggle_settings_modal();
+        }
+    }
+}
+
+/// Handle global Escape key behavior (close modals, exit zen, close search).
+pub fn handle_escape_action(mut store: Signal<AppStore>) {
+    let mut s = store.write();
+    if s.show_settings_modal {
+        s.set_settings_modal(false);
+    } else if s.is_zen {
+        s.set_zen(false);
+    } else if s.show_search {
+        s.show_search = false;
     }
 }
 
@@ -326,6 +443,22 @@ mod tests {
         let formatted = &store.tabs[0].content;
         assert!(formatted.contains("  \"app\": \"fast-md\""));
         assert!(formatted.contains("  \"enabled\": true"));
+    }
+
+    #[test]
+    fn test_sidebar_position_setting() {
+        let mut store = AppStore::default();
+        store.set_sidebar_position(SidebarPosition::Left);
+        assert_eq!(store.sidebar_position, SidebarPosition::Left);
+        assert_eq!(store.settings.sidebar_position, SidebarPosition::Left);
+
+        store.set_sidebar_position(SidebarPosition::Right);
+        assert_eq!(store.sidebar_position, SidebarPosition::Right);
+        assert_eq!(store.settings.sidebar_position, SidebarPosition::Right);
+
+        store.set_sidebar_position(SidebarPosition::Left);
+        assert_eq!(store.sidebar_position, SidebarPosition::Left);
+        assert_eq!(store.settings.sidebar_position, SidebarPosition::Left);
     }
 
     #[test]

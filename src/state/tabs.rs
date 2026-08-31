@@ -1,4 +1,4 @@
-use super::{AppStore, WELCOME_DOC};
+use super::AppStore;
 use crate::services::fs::save_document_file;
 use crate::services::markdown::{parse_document, parse_markdown_document};
 use crate::types::{DocumentFormat, DocumentMode, TabItem};
@@ -14,35 +14,37 @@ impl AppStore {
 
     /// Close a tab by its id.
     pub fn close_tab(&mut self, id: usize) {
-        if self.tabs.len() <= 1 {
-            return;
-        }
-        self.tabs.retain(|t| t.id != id);
-        if self.active_tab_id == id {
-            self.active_tab_id = self.tabs.first().map_or(0, |t| t.id);
+        if let Some(pos) = self.tabs.iter().position(|t| t.id == id) {
+            self.tabs.remove(pos);
+            if self.active_tab_id == id {
+                if self.tabs.is_empty() {
+                    self.active_tab_id = 0;
+                } else if pos < self.tabs.len() {
+                    self.active_tab_id = self.tabs[pos].id;
+                } else {
+                    self.active_tab_id = self.tabs[pos - 1].id;
+                }
+            }
         }
     }
 
     /// Close every tab except the one with `keep_id`.
     pub fn close_other_tabs(&mut self, keep_id: usize) {
-        if self.tabs.len() <= 1 {
-            return;
-        }
         self.tabs.retain(|t| t.id == keep_id);
         self.active_tab_id = keep_id;
     }
 
-    /// Create a new blank or welcome tab.
+    /// Create a new blank tab without content.
     pub fn new_empty_tab(&mut self) {
         let tab_id = self.next_tab_id;
         self.next_tab_id = self.next_tab_id.saturating_add(1);
-        let parsed = parse_markdown_document(WELCOME_DOC);
+        let parsed = parse_markdown_document("");
 
         self.tabs.push(TabItem {
             id: tab_id,
             path: None,
             title: format!("Doc-{tab_id}.md"),
-            content: WELCOME_DOC.to_string(),
+            content: String::new(),
             parsed,
             is_dirty: false,
         });
@@ -53,6 +55,66 @@ impl AppStore {
     pub fn update_active_tab_content(&mut self, new_content: String) {
         let active_id = self.active_tab_id;
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+            if tab.content != new_content {
+                tab.content = new_content;
+                let format = DocumentFormat::from_path(tab.path.as_deref());
+                tab.parsed = parse_document(&tab.content, format);
+                tab.is_dirty = true;
+            }
+        }
+    }
+
+    /// Toggle a Markdown task checkbox (- [ ] / - [x]) at target index in active tab.
+    pub fn toggle_active_tab_task(&mut self, target_idx: usize, is_checked: bool) {
+        let active_id = self.active_tab_id;
+        if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+            let mut current_idx = 0;
+            let mut new_lines = Vec::new();
+            let check_char = if is_checked { 'x' } else { ' ' };
+
+            for line in tab.content.lines() {
+                let trimmed = line.trim_start();
+                let indent_len = line.len() - trimmed.len();
+                let indent = &line[..indent_len];
+
+                let is_task = (trimmed.starts_with("- [ ] ") || trimmed.starts_with("- [x] ") || trimmed.starts_with("- [X] "))
+                    || (trimmed.starts_with("* [ ] ") || trimmed.starts_with("* [x] ") || trimmed.starts_with("* [X] "))
+                    || (trimmed.starts_with("+ [ ] ") || trimmed.starts_with("+ [x] ") || trimmed.starts_with("+ [X] "));
+
+                if is_task {
+                    if current_idx == target_idx {
+                        let bullet = &trimmed[..1];
+                        let rest = &trimmed[6..];
+                        new_lines.push(format!("{indent}{bullet} [{check_char}] {rest}"));
+                    } else {
+                        new_lines.push(line.to_string());
+                    }
+                    current_idx += 1;
+                } else if let Some(pos) = trimmed.find(". [") {
+                    let prefix_num = &trimmed[..pos];
+                    let after_dot = &trimmed[pos..];
+                    if prefix_num.chars().all(|c| c.is_ascii_digit())
+                        && (after_dot.starts_with(". [ ] ") || after_dot.starts_with(". [x] ") || after_dot.starts_with(". [X] "))
+                    {
+                        if current_idx == target_idx {
+                            let rest = &after_dot[6..];
+                            new_lines.push(format!("{indent}{prefix_num}. [{check_char}] {rest}"));
+                        } else {
+                            new_lines.push(line.to_string());
+                        }
+                        current_idx += 1;
+                    } else {
+                        new_lines.push(line.to_string());
+                    }
+                } else {
+                    new_lines.push(line.to_string());
+                }
+            }
+
+            let mut new_content = new_lines.join("\n");
+            if tab.content.ends_with('\n') {
+                new_content.push('\n');
+            }
             if tab.content != new_content {
                 tab.content = new_content;
                 let format = DocumentFormat::from_path(tab.path.as_deref());
@@ -168,3 +230,76 @@ impl AppStore {
         self.show_settings_modal = show;
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_toggle_active_tab_task() {
+        let mut store = AppStore::default();
+        store.new_empty_tab();
+        let markdown = "# Tasks\n\n- [ ] Task 1\n- [x] Task 2\n- [ ] Task 3\n";
+        store.update_active_tab_content(markdown.to_string());
+
+        // Toggle index 0 from unchecked to checked
+        store.toggle_active_tab_task(0, true);
+        let tab = store.active_tab().unwrap();
+        assert!(tab.content.contains("- [x] Task 1"));
+        assert!(tab.content.contains("- [x] Task 2"));
+        assert!(tab.content.contains("- [ ] Task 3"));
+
+        // Toggle index 1 from checked to unchecked
+        store.toggle_active_tab_task(1, false);
+        let tab = store.active_tab().unwrap();
+        assert!(tab.content.contains("- [ ] Task 2"));
+
+        // Toggle index 2 from unchecked to checked
+        store.toggle_active_tab_task(2, true);
+        let tab = store.active_tab().unwrap();
+        assert!(tab.content.contains("- [x] Task 3"));
+    }
+
+    #[test]
+    fn test_new_empty_tab_is_blank() {
+        let mut store = AppStore::default();
+        let initial_tabs_len = store.tabs.len();
+        store.new_empty_tab();
+
+        assert_eq!(store.tabs.len(), initial_tabs_len + 1);
+        let new_tab = store.active_tab().expect("active tab should exist");
+        assert_eq!(new_tab.content, "");
+        assert!(new_tab.path.is_none());
+        assert!(!new_tab.is_dirty);
+    }
+
+    #[test]
+    fn test_close_tab_and_close_last_tab() {
+        let mut store = AppStore::default();
+        assert_eq!(store.tabs.len(), 1);
+        let first_id = store.tabs[0].id;
+
+        // Close the only remaining tab
+        store.close_tab(first_id);
+        assert!(store.tabs.is_empty());
+        assert_eq!(store.active_tab_id, 0);
+        assert!(store.active_tab().is_none());
+
+        // Opening a new tab works after all tabs are closed
+        store.new_empty_tab();
+        assert_eq!(store.tabs.len(), 1);
+        assert!(store.active_tab().is_some());
+    }
+
+    #[test]
+    fn test_line_count_with_newlines() {
+        assert_eq!("".split('\n').count(), 1);
+        assert_eq!("\n".split('\n').count(), 2);
+        assert_eq!("\n\n".split('\n').count(), 3);
+        assert_eq!("\n\n\n".split('\n').count(), 4);
+        assert_eq!("hello\n".split('\n').count(), 2);
+        assert_eq!("hello\nworld\n".split('\n').count(), 3);
+    }
+}
+
