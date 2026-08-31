@@ -262,7 +262,6 @@
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
     overflow: visible;
     pointer-events: none;
     z-index: 1;
@@ -274,7 +273,6 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     opacity: 0.55;
-    transition: d 0.15s ease-out;
 }
 
 .toc-progress-fill-path {
@@ -283,7 +281,7 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     filter: drop-shadow(0 0 3px var(--accent-glow, rgba(88, 166, 255, 0.4)));
-    transition: stroke-dashoffset 0.1s cubic-bezier(0.16, 1, 0.3, 1), d 0.15s ease-out;
+    transition: stroke-dashoffset 0.1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .toc-progress-head {
@@ -305,7 +303,8 @@
 
 .toc-tree-item {
     position: relative;
-    margin: 2px 0;
+    margin: 0;
+    height: 100%;
 }
 
 .toc-link {

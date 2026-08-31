@@ -6,6 +6,7 @@ use crate::types::{FileFilterMode, SidebarTab};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::input::Input;
 use crate::ui::toggle_group::{ToggleGroup, ToggleItem};
+use crate::ui::virtual_list::VirtualList;
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::ld_icons::{
@@ -14,9 +15,13 @@ use dioxus_free_icons::icons::ld_icons::{
 };
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::time::Duration;
 
-use file_tree::{dir_ancestors_of_file, FileTreeItem};
-use toc::TocItemLink;
+use file_tree::{filter_file_tree, flatten_visible, FileTreeRowItem, FILE_TREE_ROW_HEIGHT};
+use toc::{TocItemLink, TOC_ROW_HEIGHT};
+
+// ponytail: 80ms debounce + prune; virtualize if vaults >>10k visible hits
+const FILE_SEARCH_DEBOUNCE: Duration = Duration::from_millis(80);
 
 fn sidebar_tab_index(tab: SidebarTab) -> usize {
     match tab {
@@ -32,38 +37,109 @@ fn sidebar_tab_from_index(idx: usize) -> SidebarTab {
     }
 }
 
+fn emit_file_search_query(
+    mut gen: Signal<u32>,
+    on_query: EventHandler<String>,
+    value: String,
+    debounce: bool,
+) {
+    gen += 1;
+    if debounce {
+        let my_gen = gen();
+        spawn(async move {
+            tokio::time::sleep(FILE_SEARCH_DEBOUNCE).await;
+            if gen() == my_gen {
+                on_query.call(value);
+            }
+        });
+    } else {
+        on_query.call(value);
+    }
+}
+
+#[component]
+fn FileSearchBox(
+    placeholder: &'static str,
+    initial_query: String,
+    gen: Signal<u32>,
+    on_query: EventHandler<String>,
+) -> Element {
+    let mut text = use_signal(move || initial_query);
+
+    rsx! {
+        div {
+            class: "flex items-center flex-1 min-w-0 h-7 bg-[var(--bg-app)] border border-[var(--border-color)] rounded px-2 gap-1.5 focus-within:border-[var(--accent)] transition-colors",
+            Icon { width: 12, height: 12, icon: LdSearch, class: "text-[var(--text-muted)] shrink-0" }
+            Input {
+                class: "file-search-input flex-1 bg-transparent border-0 text-[var(--text-main)] text-xs outline-none min-w-0 placeholder:text-[var(--text-muted)]",
+                r#type: "text",
+                placeholder: "{placeholder}",
+                value: "{text()}",
+                oninput: move |evt: FormEvent| {
+                    let value = evt.value();
+                    text.set(value.clone());
+                    emit_file_search_query(gen, on_query, value, true);
+                },
+            }
+            if !text().is_empty() {
+                button {
+                    class: "text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer p-0.5 rounded transition-colors flex items-center justify-center",
+                    title: "Clear",
+                    onclick: move |_| {
+                        text.set(String::new());
+                        emit_file_search_query(gen, on_query, String::new(), false);
+                    },
+                    Icon { width: 11, height: 11, icon: LdX }
+                }
+            }
+        }
+    }
+}
+
 #[derive(Props, Clone, PartialEq)]
 pub struct SidebarProps {
     pub store: Signal<AppStore>,
-    pub on_select_heading: EventHandler<String>,
 }
 
 #[component]
 pub fn Sidebar(props: SidebarProps) -> Element {
     let mut store = props.store;
     let mut file_search_query = use_signal(String::new);
-    let mut expanded_dirs = use_signal(HashSet::<PathBuf>::new);
+    let search_gen = use_signal(|| 0u32);
+    let mut file_tree_scroll_top = use_signal(|| 0.0_f64);
+    let toc_scroll_top = use_signal(|| 0.0_f64);
     let mut is_filter_menu_open = use_signal(|| false);
     let store_read = store();
     let t = store_read.language.strings();
 
     let toc = store_read.active_tab().map_or_else(Vec::new, |t| t.parsed.toc.clone());
-    let file_tree = store_read.file_tree.clone();
     let current_tab = store_read.sidebar_tab;
     let is_loading_files = store_read.is_loading_files;
     let current_filter_mode = store_read.file_filter_mode;
     let active_path = store_read.active_tab().and_then(|tab| tab.path.clone());
     let sidebar_tab_pressed = use_memo(move || Some(HashSet::from([sidebar_tab_index(store().sidebar_tab)])));
+    let flat_file_rows = use_memo(move || {
+        let s = store();
+        let query = file_search_query();
+        let searching = !query.is_empty();
+        let visible_entries = if searching {
+            filter_file_tree(&s.file_tree, &query)
+        } else {
+            s.file_tree.clone()
+        };
+        flatten_visible(&visible_entries, &s.expanded_dirs, searching)
+    });
 
     use_effect({
         let active_path = active_path.clone();
         move || {
             if let Some(ref path) = active_path {
-                let mut next = expanded_dirs();
-                for ancestor in dir_ancestors_of_file(path) {
-                    next.insert(ancestor);
+                store.write().expand_dir_ancestors(path);
+                let rows = flat_file_rows();
+                if let Some(idx) = rows.iter().position(|r| &r.path == path) {
+                    let top = f64::from(idx as u32 * FILE_TREE_ROW_HEIGHT);
+                    file_tree_scroll_top.set(top);
                 }
-                expanded_dirs.set(next);
             }
         }
     });
@@ -114,44 +190,74 @@ pub fn Sidebar(props: SidebarProps) -> Element {
             }
 
             if current_tab == SidebarTab::Toc {
-                div {
-                    class: "sidebar-toc-container flex-1 overflow-y-auto p-2",
-                    if toc.is_empty() {
-                        div {
-                            class: "sidebar-empty-state py-8 px-4 text-[var(--text-muted)] text-xs text-center leading-relaxed flex flex-col items-center justify-center",
-                            Icon { width: 22, height: 22, icon: LdBookOpen, class: "opacity-40 mb-2" }
-                            span { "{t.sidebar.no_headings}" }
-                        }
-                    } else {
-                        div {
-                            class: "toc-wrapper relative min-h-full",
-                            svg {
-                                class: "toc-progress-svg absolute top-0 left-0 w-full h-full pointer-events-none overflow-visible",
-                                id: "toc-progress-svg",
-                                path {
-                                    id: "toc-track-path",
-                                    class: "toc-track-path",
-                                    fill: "none",
-                                }
-                                path {
-                                    id: "toc-progress-fill-path",
-                                    class: "toc-progress-fill-path",
-                                    fill: "none",
-                                }
-                                circle {
-                                    id: "toc-progress-head",
-                                    class: "toc-progress-head",
-                                    r: "3.5",
-                                    style: "opacity: 0;",
-                                }
+                {
+                    let toc_levels_json = serde_json::to_string(
+                        &toc.iter().map(|item| item.level).collect::<Vec<_>>(),
+                    )
+                    .unwrap_or_else(|_| "[]".to_string());
+                    let toc_ids_json = serde_json::to_string(
+                        &toc.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
+                    )
+                    .unwrap_or_else(|_| "[]".to_string());
+                    let toc_total_height = toc.len() as u32 * TOC_ROW_HEIGHT;
+                    let toc_count = toc.len();
+                    let render_toc_row = Callback::new(move |idx: usize| {
+                        let Some(item) = toc.get(idx) else {
+                            return rsx! {};
+                        };
+                        rsx! {
+                            TocItemLink {
+                                item: item.clone(),
+                                index: idx,
                             }
-                            ul {
-                                class: "toc-tree-list list-none m-0 p-0 relative",
-                                for item in &toc {
-                                    TocItemLink {
-                                        key: "{item.id}",
-                                        item: item.clone(),
-                                        on_select: props.on_select_heading,
+                        }
+                    });
+                    rsx! {
+                        div {
+                            class: "sidebar-toc-container flex-1 flex flex-col min-h-0 overflow-hidden p-2",
+                            if toc_count == 0 {
+                                div {
+                                    class: "sidebar-empty-state py-8 px-4 text-[var(--text-muted)] text-xs text-center leading-relaxed flex flex-col items-center justify-center",
+                                    Icon { width: 22, height: 22, icon: LdBookOpen, class: "opacity-40 mb-2" }
+                                    span { "{t.sidebar.no_headings}" }
+                                }
+                            } else {
+                                div {
+                                    class: "toc-wrapper relative flex-1 min-h-0 flex flex-col",
+                                    "data-toc-count": "{toc_count}",
+                                    "data-toc-row-height": "{TOC_ROW_HEIGHT}",
+                                    "data-toc-levels": "{toc_levels_json}",
+                                    "data-toc-ids": "{toc_ids_json}",
+                                    VirtualList {
+                                        class: "toc-tree-list list-none m-0 p-0 relative z-[2]",
+                                        list_id: Some("toc-virtual-list".to_string()),
+                                        item_count: toc_count,
+                                        row_height: TOC_ROW_HEIGHT,
+                                        scroll_top: toc_scroll_top,
+                                        render_row: render_toc_row,
+                                        overlay: rsx! {
+                                            svg {
+                                                class: "toc-progress-svg",
+                                                style: "position: absolute; top: 0; left: 0; width: 100%; height: {toc_total_height}px; pointer-events: none; overflow: visible; z-index: 1;",
+                                                id: "toc-progress-svg",
+                                                path {
+                                                    id: "toc-track-path",
+                                                    class: "toc-track-path",
+                                                    fill: "none",
+                                                }
+                                                path {
+                                                    id: "toc-progress-fill-path",
+                                                    class: "toc-progress-fill-path",
+                                                    fill: "none",
+                                                }
+                                                circle {
+                                                    id: "toc-progress-head",
+                                                    class: "toc-progress-head",
+                                                    r: "3.5",
+                                                    style: "opacity: 0;",
+                                                }
+                                            }
+                                        },
                                     }
                                 }
                             }
@@ -160,27 +266,14 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                 }
             } else {
                 div {
-                    class: "sidebar-files-container flex-1 overflow-y-auto p-2 flex flex-col gap-2",
+                    class: "sidebar-files-container flex-1 flex flex-col gap-2 min-h-0 overflow-hidden p-2",
                     div {
                         class: "file-search-box flex items-center gap-1.5 px-0.5 relative",
-                        div {
-                            class: "flex items-center flex-1 min-w-0 h-7 bg-[var(--bg-app)] border border-[var(--border-color)] rounded px-2 gap-1.5 focus-within:border-[var(--accent)] transition-colors",
-                            Icon { width: 12, height: 12, icon: LdSearch, class: "text-[var(--text-muted)] shrink-0" }
-                            Input {
-                                class: "file-search-input flex-1 bg-transparent border-0 text-[var(--text-main)] text-xs outline-none min-w-0 placeholder:text-[var(--text-muted)]",
-                                r#type: "text",
-                                placeholder: "{t.sidebar.filter_files}",
-                                value: "{file_search_query()}",
-                                oninput: move |evt: FormEvent| file_search_query.set(evt.value()),
-                            }
-                            if !file_search_query().is_empty() {
-                                button {
-                                    class: "text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer p-0.5 rounded transition-colors flex items-center justify-center",
-                                    title: "Clear",
-                                    onclick: move |_| file_search_query.set(String::new()),
-                                    Icon { width: 11, height: 11, icon: LdX }
-                                }
-                            }
+                        FileSearchBox {
+                            placeholder: t.sidebar.filter_files,
+                            initial_query: file_search_query(),
+                            gen: search_gen,
+                            on_query: move |q| file_search_query.set(q),
                         }
 
                         div {
@@ -272,7 +365,7 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                                 div { class: "sidebar-skeleton-row w-3/5 ml-3" }
                             }
                         }
-                    } else if file_tree.is_empty() {
+                    } else if store_read.file_tree.is_empty() {
                         div {
                             class: "sidebar-empty-state py-8 px-4 text-[var(--text-muted)] text-xs text-center leading-relaxed flex flex-col items-center justify-center gap-2",
                             Icon { width: 24, height: 24, icon: LdFolderOpen, class: "opacity-40 mb-1" }
@@ -285,18 +378,7 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                                 onclick: move |_| {
                                     spawn(async move {
                                         if let Some(dir) = crate::services::fs::pick_folder_async().await {
-                                            store.write().start_loading_directory(dir.clone());
-                                            let filter_mode = store().file_filter_mode;
-                                            let scan_dir = dir.clone();
-                                            let tree_res = tokio::task::spawn_blocking(move || {
-                                                crate::services::fs::scan_file_tree(&scan_dir, filter_mode)
-                                            }).await;
-
-                                            if let Ok(Ok(tree)) = tree_res {
-                                                store.write().finish_loading_directory(&dir, tree);
-                                            } else {
-                                                store.write().set_loading_files(false);
-                                            }
+                                            store.write().switch_workspace(dir);
                                         }
                                     });
                                 },
@@ -305,27 +387,37 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                             }
                         }
                     } else {
-                        div {
-                            class: "file-tree-list flex flex-col gap-0.5",
-                            for entry in &file_tree {
-                                FileTreeItem {
-                                    key: "{entry.path.display()}",
-                                    entry: entry.clone(),
-                                    query: file_search_query(),
-                                    active_path: active_path.clone(),
-                                    expanded_dirs: expanded_dirs,
-                                    translations: t,
-                                    store: store,
-                                    on_toggle_dir: move |path| {
-                                        let mut next = expanded_dirs();
-                                        if next.contains(&path) {
-                                            next.remove(&path);
-                                        } else {
-                                            next.insert(path);
-                                        }
-                                        expanded_dirs.set(next);
-                                    },
-                                    on_select: open_file,
+                        {
+                            let row_count = flat_file_rows().len();
+                            let mut store_for_rows = store;
+                            let active_for_rows = active_path.clone();
+                            let render_row = Callback::new(move |idx: usize| {
+                                let rows = flat_file_rows();
+                                let Some(row) = rows.get(idx) else {
+                                    return rsx! {};
+                                };
+                                rsx! {
+                                    FileTreeRowItem {
+                                        row: row.clone(),
+                                        active_path: active_for_rows.clone(),
+                                        translations: t,
+                                        store: store_for_rows,
+                                        on_toggle_dir: move |path| {
+                                            store_for_rows.write().toggle_expanded_dir(path);
+                                        },
+                                        on_select: open_file,
+                                    }
+                                }
+                            });
+                            rsx! {
+                                VirtualList {
+                                    class: "file-tree-list flex flex-col gap-0.5",
+                                    list_id: Some("file-tree-virtual-list".to_string()),
+                                    item_count: row_count,
+                                    row_height: FILE_TREE_ROW_HEIGHT,
+                                    scroll_top: file_tree_scroll_top,
+                                    overlay: rsx! {},
+                                    render_row: render_row,
                                 }
                             }
                         }
