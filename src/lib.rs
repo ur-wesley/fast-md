@@ -61,6 +61,13 @@ pub(crate) fn resolve_cli_path(raw_path: Option<&PathBuf>) -> Option<PathBuf> {
 }
 
 pub fn run() {
+    #[cfg(windows)]
+    unsafe {
+        windows_sys::Win32::System::Console::AttachConsole(
+            windows_sys::Win32::System::Console::ATTACH_PARENT_PROCESS,
+        );
+    }
+
     let args = CliArgs::parse_safe();
 
     if args.register {

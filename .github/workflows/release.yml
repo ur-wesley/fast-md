@@ -10,24 +10,9 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build (${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            bin_name: fast-md.exe
-            archive_ext: zip
-            artifact_name: fast-md-${{ github.ref_name }}-windows-x86_64.zip
-          - os: macos-14
-            target: aarch64-apple-darwin
-            bin_name: fast-md
-            archive_ext: tar.gz
-            artifact_name: fast-md-${{ github.ref_name }}-macos-arm64.tar.gz
-
+  build-windows:
+    name: Build Windows (on Ubuntu via cargo-xwin)
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,57 +20,99 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install cross-compilation & packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nsis lld clang zip
+          cargo install cargo-xwin --locked
 
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.target }}
+          key: x86_64-pc-windows-msvc
+
+      - name: Build Windows release binary
+        run: cargo xwin build --release --locked --target x86_64-pc-windows-msvc
+
+      - name: Package Windows portable zip and installer
+        run: |
+          VERSION="${{ github.ref_name }}"
+          BIN_PATH="target/x86_64-pc-windows-msvc/release/fast-md.exe"
+
+          # 1. Portable ZIP (used by in-app self-updater)
+          mkdir -p staging-portable
+          cp "$BIN_PATH" staging-portable/
+          cp README.md LICENSE staging-portable/
+          cd staging-portable
+          zip -r "../fast-md-$VERSION-windows-x86_64.zip" *
+          cd ..
+          shasum -a 256 "fast-md-$VERSION-windows-x86_64.zip" > "fast-md-$VERSION-windows-x86_64.zip.sha256"
+
+          # 2. Setup Installer (.exe)
+          makensis -DPRODUCT_VERSION="$VERSION" \
+                   -DOUT_FILE="fast-md-$VERSION-windows-x86_64-setup.exe" \
+                   -DBIN_PATH="$BIN_PATH" \
+                   packaging/windows/installer.nsi
+          shasum -a 256 "fast-md-$VERSION-windows-x86_64-setup.exe" > "fast-md-$VERSION-windows-x86_64-setup.exe.sha256"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-windows
+          path: |
+            fast-md-*-windows-x86_64.zip
+            fast-md-*-windows-x86_64.zip.sha256
+            fast-md-*-windows-x86_64-setup.exe
+            fast-md-*-windows-x86_64-setup.exe.sha256
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          key: aarch64-apple-darwin
 
       - name: Build release binary
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        run: cargo build --release --locked --target aarch64-apple-darwin
 
-      - name: Package release artifact (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
+      - name: Package macOS artifact
         run: |
-          $binPath = "target/${{ matrix.target }}/release/${{ matrix.bin_name }}"
-          $archive = "${{ matrix.artifact_name }}"
-          $staging = "staging-windows"
-          New-Item -ItemType Directory -Force -Path $staging | Out-Null
-          Copy-Item $binPath -Destination "$staging/${{ matrix.bin_name }}"
-          Copy-Item "README.md" -Destination "$staging/README.md"
-          Copy-Item "LICENSE" -Destination "$staging/LICENSE"
-          Compress-Archive -Path "$staging/*" -DestinationPath $archive -Force
-          $hash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLower()
-          "$hash  $archive" | Out-File -FilePath "$archive.sha256" -Encoding ASCII
-
-      - name: Package release artifact (macOS)
-        if: matrix.os != 'windows-latest'
-        run: |
+          VERSION="${{ github.ref_name }}"
           STAGING="staging-macos"
           mkdir -p "$STAGING/Fast-MD.app/Contents/MacOS"
           mkdir -p "$STAGING/Fast-MD.app/Contents/Resources"
-          cp "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" "$STAGING/Fast-MD.app/Contents/MacOS/"
-          cp "README.md" "$STAGING/"
-          cp "LICENSE" "$STAGING/"
-          sed "s/APP_VERSION/${{ github.ref_name }}/g" src/assets/Info.plist > "$STAGING/Fast-MD.app/Contents/Info.plist"
-          cp "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" "$STAGING/"
-          tar -czvf "${{ matrix.artifact_name }}" -C "$STAGING" "Fast-MD.app" "${{ matrix.bin_name }}" "README.md" "LICENSE"
-          shasum -a 256 "${{ matrix.artifact_name }}" > "${{ matrix.artifact_name }}.sha256"
+          cp "target/aarch64-apple-darwin/release/fast-md" "$STAGING/Fast-MD.app/Contents/MacOS/"
+          cp "target/aarch64-apple-darwin/release/fast-md" "$STAGING/"
+          cp README.md LICENSE "$STAGING/"
+          sed "s/APP_VERSION/$VERSION/g" src/assets/Info.plist > "$STAGING/Fast-MD.app/Contents/Info.plist"
+          tar -czvf "fast-md-$VERSION-macos-arm64.tar.gz" -C "$STAGING" "Fast-MD.app" "fast-md" "README.md" "LICENSE"
+          shasum -a 256 "fast-md-$VERSION-macos-arm64.tar.gz" > "fast-md-$VERSION-macos-arm64.tar.gz.sha256"
 
-      - name: Upload build artifacts
+      - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-${{ matrix.target }}
+          name: artifacts-macos
           path: |
-            ${{ matrix.artifact_name }}
-            ${{ matrix.artifact_name }}.sha256
+            fast-md-*-macos-arm64.tar.gz
+            fast-md-*-macos-arm64.tar.gz.sha256
           if-no-files-found: error
 
   publish:
     name: Publish GitHub Release
-    needs: build
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write

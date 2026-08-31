@@ -80,12 +80,24 @@ const fn get_platform_asset_keywords() -> (&'static [&'static str], &'static str
 pub fn check_github_release() -> Result<Option<ReleaseInfo>> {
     let api_url = format!("https://api.github.com/repos/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/releases/latest");
 
-    let response = ureq::get(&api_url)
+    let response = match ureq::get(&api_url)
         .set("User-Agent", USER_AGENT)
         .set("Accept", "application/vnd.github.v3+json")
         .timeout(std::time::Duration::from_secs(10))
         .call()
-        .wrap_err("Failed to connect to GitHub Releases API")?;
+    {
+        Ok(res) => res,
+        Err(ureq::Error::Status(404, _)) => {
+            // 404 from GitHub Releases latest endpoint means no releases are published yet
+            return Ok(None);
+        }
+        Err(ureq::Error::Status(403, _)) => {
+            return Err(eyre!("GitHub API rate limit exceeded or access restricted."));
+        }
+        Err(err) => {
+            return Err(err).wrap_err("Failed to connect to GitHub Releases API");
+        }
+    };
 
     let release: GitHubReleaseResponse = response
         .into_json()
@@ -108,10 +120,13 @@ pub fn check_github_release() -> Result<Option<ReleaseInfo>> {
 
     let (keywords, _bin_name) = get_platform_asset_keywords();
 
-    // Find the matching release asset for the current OS/architecture
+    // Find the matching release asset archive for the current OS/architecture
     let matching_asset = release.assets.iter().find(|asset| {
         let name_lower = asset.name.to_lowercase();
         keywords.iter().all(|&kw| name_lower.contains(kw))
+            && (name_lower.ends_with(".zip")
+                || name_lower.ends_with(".tar.gz")
+                || name_lower.ends_with(".tgz"))
     });
 
     let Some(asset) = matching_asset else {
