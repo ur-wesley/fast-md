@@ -2,13 +2,10 @@ use dioxus::prelude::*;
 use dioxus_primitives::separator::{self, SeparatorProps};
 use dioxus_primitives::{dioxus_attributes::attributes, merge_attributes};
 
-#[css_module("/src/ui/separator/style.css")]
-struct Styles;
-
 #[component]
 pub fn Separator(props: SeparatorProps) -> Element {
     let base = attributes!(div {
-        class: Styles::dx_separator,
+        class: "dx-separator",
     });
     let merged = merge_attributes(vec![base, props.attributes]);
 

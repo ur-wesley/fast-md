@@ -25,7 +25,18 @@ pub const APP_STYLES: &str = concat!(
     include_str!("assets/css/settings.css"),
     include_str!("assets/css/editor.css"),
     include_str!("assets/dx-components-theme.css"),
-    include_str!("assets/css/dx-tooltips.css"),
+    include_str!("ui/badge/style.css"),
+    include_str!("ui/button/style.css"),
+    include_str!("ui/context_menu/style.css"),
+    include_str!("ui/dialog/style.css"),
+    include_str!("ui/input/style.css"),
+    include_str!("ui/label/style.css"),
+    include_str!("ui/separator/style.css"),
+    include_str!("ui/switch/style.css"),
+    include_str!("ui/tabs/style.css"),
+    include_str!("ui/toggle/style.css"),
+    include_str!("ui/toggle_group/style.css"),
+    include_str!("ui/tooltip/style.css"),
 );
 
 const HELPER_JS: &str = concat!(

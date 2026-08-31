@@ -3,13 +3,10 @@ use dioxus_primitives::dioxus_attributes::attributes;
 use dioxus_primitives::merge_attributes;
 use dioxus_primitives::tooltip::{self, TooltipContentProps, TooltipProps, TooltipTriggerProps};
 
-#[css_module("/src/ui/tooltip/style.css")]
-struct Styles;
-
 #[component]
 pub fn Tooltip(props: TooltipProps) -> Element {
     let base = attributes!(div {
-        class: Styles::dx_tooltip,
+        class: "dx-tooltip",
     });
     let merged = merge_attributes(vec![base, props.attributes]);
 
@@ -28,7 +25,7 @@ pub fn Tooltip(props: TooltipProps) -> Element {
 #[component]
 pub fn TooltipTrigger(props: TooltipTriggerProps) -> Element {
     let base = attributes!(span {
-        class: Styles::dx_tooltip_trigger,
+        class: "dx-tooltip-trigger",
     });
     let merged = merge_attributes(vec![base, props.attributes]);
 
@@ -45,7 +42,7 @@ pub fn TooltipTrigger(props: TooltipTriggerProps) -> Element {
 #[component]
 pub fn TooltipContent(props: TooltipContentProps) -> Element {
     let base = attributes!(div {
-        class: Styles::dx_tooltip_content,
+        class: "dx-tooltip-content",
     });
     let merged = merge_attributes(vec![base, props.attributes]);
 

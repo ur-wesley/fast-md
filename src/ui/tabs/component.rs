@@ -2,9 +2,6 @@ use dioxus::prelude::*;
 use dioxus_primitives::tabs::{self, TabContentProps, TabListProps, TabTriggerProps};
 use dioxus_primitives::{dioxus_attributes::attributes, merge_attributes};
 
-#[css_module("/src/ui/tabs/style.css")]
-struct Styles;
-
 /// The props for the [`Tabs`] component.
 #[derive(Props, Clone, PartialEq)]
 pub struct TabsProps {
@@ -70,7 +67,7 @@ impl TabsVariant {
 #[component]
 pub fn Tabs(props: TabsProps) -> Element {
     let base = attributes!(div {
-        class: format!("{} {}", props.class, Styles::dx_tabs),
+        class: format!("{} dx-tabs", props.class),
         "data-variant": props.variant.to_class(),
     });
     let merged = merge_attributes(vec![base, props.attributes]);
@@ -92,7 +89,7 @@ pub fn Tabs(props: TabsProps) -> Element {
 #[component]
 pub fn TabList(props: TabListProps) -> Element {
     let base = attributes!(div {
-        class: Styles::dx_tabs_list
+        class: "dx-tabs-list"
     });
     let merged = merge_attributes(vec![base, props.attributes]);
 
@@ -105,8 +102,7 @@ pub fn TabList(props: TabListProps) -> Element {
 pub fn TabTrigger(props: TabTriggerProps) -> Element {
     let base = attributes!(button {
         class: format!(
-            "{} {}",
-            Styles::dx_tabs_trigger,
+            "dx-tabs-trigger {}",
             props.class.unwrap_or_default()
         )
     });
@@ -129,10 +125,8 @@ pub fn TabTrigger(props: TabTriggerProps) -> Element {
 pub fn TabContent(props: TabContentProps) -> Element {
     let base = attributes!(div {
         class: format!(
-            "{} {} {}",
-            props.class.unwrap_or_default(),
-            Styles::dx_tabs_content,
-            Styles::dx_tabs_content_themed
+            "{} dx-tabs-content dx-tabs-content-themed",
+            props.class.unwrap_or_default()
         )
     });
     let merged = merge_attributes(vec![base, props.attributes]);

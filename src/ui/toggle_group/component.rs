@@ -3,13 +3,10 @@ use dioxus_primitives::dioxus_attributes::attributes;
 use dioxus_primitives::merge_attributes;
 use dioxus_primitives::toggle_group::{self, ToggleGroupProps, ToggleItemProps};
 
-#[css_module("/src/ui/toggle_group/style.css")]
-struct Styles;
-
 #[component]
 pub fn ToggleGroup(props: ToggleGroupProps) -> Element {
     let base = attributes!(div {
-        class: Styles::dx_toggle_group,
+        class: "dx-toggle-group",
     });
     let merged = merge_attributes(vec![base, props.attributes]);
 
@@ -31,7 +28,7 @@ pub fn ToggleGroup(props: ToggleGroupProps) -> Element {
 #[component]
 pub fn ToggleItem(props: ToggleItemProps) -> Element {
     let base = attributes!(button {
-        class: Styles::dx_toggle_item,
+        class: "dx-toggle-item",
     });
     let merged = merge_attributes(vec![base, props.attributes]);
 
