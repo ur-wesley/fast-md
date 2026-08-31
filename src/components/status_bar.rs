@@ -1,9 +1,11 @@
+use crate::components::Hint;
 use crate::types::{DocumentMode, Language, ParsedDocument};
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::ld_icons::{
     LdAlignLeft, LdBookOpen, LdClock, LdColumns2, LdFileCode2, LdFileText, LdSparkles,
 };
+use dioxus_primitives::{ContentAlign, ContentSide};
 use std::path::PathBuf;
 
 #[derive(Props, Clone, PartialEq)]
@@ -22,7 +24,7 @@ pub struct StatusBarProps {
 #[component]
 pub fn StatusBar(props: StatusBarProps) -> Element {
     let t = props.language.strings();
-    let line_count = props.raw_content.lines().count().max(1);
+    let line_count = props.raw_content.split('\n').count();
     let char_count = props.raw_content.chars().count();
 
     let path_display = props.file_path.as_ref().map_or_else(
@@ -59,10 +61,13 @@ pub fn StatusBar(props: StatusBarProps) -> Element {
                 class: "status-left-group flex items-center gap-2 min-w-0",
 
                 // Clickable Mode Badge
-                button {
-                    class: "status-mode-pill inline-flex items-center gap-1 bg-[var(--bg-subtle)] hover:bg-[var(--bg-hover)] text-[var(--accent)] px-1.5 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer border border-[var(--border-subtle)] transition-all",
-                    title: "Click to cycle mode (Ctrl+E)",
-                    onclick: move |_| props.on_cycle_mode.call(()),
+                Hint {
+                    text: t.status_bar.cycle_mode,
+                    side: ContentSide::Top,
+                    align: ContentAlign::Start,
+                    button {
+                        class: "status-mode-pill inline-flex items-center gap-1 bg-[var(--bg-subtle)] hover:bg-[var(--bg-hover)] text-[var(--accent)] px-1.5 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer border border-[var(--border-subtle)] transition-all",
+                        onclick: move |_| props.on_cycle_mode.call(()),
                     match props.mode {
                         DocumentMode::View => rsx! { Icon { width: 11, height: 11, icon: LdBookOpen } },
                         DocumentMode::Split => rsx! { Icon { width: 11, height: 11, icon: LdColumns2 } },
@@ -70,6 +75,7 @@ pub fn StatusBar(props: StatusBarProps) -> Element {
                         DocumentMode::Source => rsx! { Icon { width: 11, height: 11, icon: LdFileCode2 } },
                     }
                     span { "{mode_label}" }
+                    }
                 }
 
                 // Dirty State Pill
