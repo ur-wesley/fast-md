@@ -27,7 +27,22 @@
     function textareaContentHeight(textarea, style) {
         const padTop = parseFloat(style.paddingTop) || 0;
         const padBottom = parseFloat(style.paddingBottom) || 0;
-        return Math.max(0, textarea.scrollHeight - padTop - padBottom);
+        if (textarea.scrollHeight > textarea.clientHeight + 1) {
+            return Math.max(0, textarea.scrollHeight - padTop - padBottom);
+        }
+        const mirror = getOrCreateGutterMirror();
+        prepareGutterMirror(mirror, textarea, style);
+        if (textarea.dataset.lineWrap === '1') {
+            mirror.style.whiteSpace = style.whiteSpace || 'pre-wrap';
+            mirror.style.wordBreak = style.wordBreak || 'break-all';
+            mirror.style.overflowWrap = style.overflowWrap;
+        } else {
+            mirror.style.whiteSpace = 'pre';
+            mirror.style.wordBreak = 'normal';
+            mirror.style.overflowWrap = 'normal';
+        }
+        mirror.value = textarea.value.length > 0 ? textarea.value : ' ';
+        return Math.max(mirror.scrollHeight, usedLineHeightPx(style));
     }
 
     function syncGutterToTextarea(textarea) {
@@ -191,6 +206,8 @@
         inner.style.lineHeight = '';
         inner.style.display = 'flex';
         inner.style.flexDirection = 'column';
+        inner.style.flexGrow = '0';
+        inner.style.flexShrink = '0';
         inner.style.height = contentH + 'px';
         inner.style.boxSizing = 'border-box';
 
