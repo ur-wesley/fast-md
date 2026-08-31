@@ -1,0 +1,682 @@
+/* ================= Main Document Viewer Area (OS Native Frosted Glass) ================= */
+
+.app-main-viewer {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    padding: 0 30px 34px 30px;
+    background-color: var(--reader-glass-bg);
+    color: var(--text-main);
+    transition: font-size var(--transition-fast);
+}
+
+.viewer-container {
+    margin: 0 auto;
+    padding-top: 24px;
+    transition: max-width var(--transition-fast);
+}
+
+.viewer-container.reading-width {
+    max-width: 880px;
+}
+
+.viewer-container.full-width {
+    max-width: 1360px;
+}
+
+/* ================= Frontmatter Card ================= */
+
+.frontmatter-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.frontmatter-title {
+    font-size: 1.9em;
+    font-weight: 750;
+    color: var(--text-heading);
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+}
+
+.frontmatter-desc {
+    color: var(--text-muted);
+    font-size: 0.96em;
+    margin-bottom: 14px;
+    line-height: 1.55;
+}
+
+.frontmatter-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.frontmatter-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--bg-subtle);
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
+}
+
+.badge-label {
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.frontmatter-tag-badge {
+    background-color: var(--bg-subtle);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 14px;
+    font-size: 0.8em;
+    font-weight: 600;
+    border: 1px solid var(--border-subtle);
+}
+
+/* ================= Markdown Typography (Prose) ================= */
+
+.markdown-body {
+    line-height: 1.72;
+    font-size: 1.02em;
+    color: var(--text-main);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+.markdown-body ::selection {
+    background-color: var(--accent);
+    color: var(--accent-text, #ffffff);
+}
+
+/* Markdown Sections (Parts) */
+.markdown-section {
+    position: relative;
+    margin-top: 1.6em;
+    margin-bottom: 1.6em;
+}
+
+.markdown-section:first-child {
+    margin-top: 0;
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+    color: var(--text-heading);
+    font-weight: 650;
+    line-height: 1.32;
+    margin-top: 1.3em;
+    margin-bottom: 0.6em;
+    position: relative;
+    scroll-margin-top: 0;
+}
+
+.markdown-section > h1,
+.markdown-section > h2,
+.markdown-section > h3,
+.markdown-section > h4,
+.markdown-section > h5,
+.markdown-section > h6 {
+    margin-top: 0;
+}
+
+/* Sticky Markdown Headings Mode (Per-Part) */
+.has-sticky-headers .markdown-section > h1,
+.has-sticky-headers .markdown-section > h2,
+.has-sticky-headers .markdown-section > h3,
+.has-sticky-headers .markdown-section > h4,
+.has-sticky-headers .markdown-section > h5,
+.has-sticky-headers .markdown-section > h6,
+.has-sticky-headers .markdown-body > h1,
+.has-sticky-headers .markdown-body > h2,
+.has-sticky-headers .markdown-body > h3 {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: var(--reader-glass-bg);
+    margin-top: 0;
+    margin-bottom: 0.6em;
+    padding-top: 10px;
+    padding-bottom: 8px;
+    box-shadow: 0 1px 0 var(--border-subtle);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    scroll-margin-top: 0;
+}
+
+.has-sticky-headers .markdown-section > h1,
+.has-sticky-headers .markdown-body > h1 {
+    top: 0;
+    z-index: 25;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.has-sticky-headers .markdown-section > h2,
+.has-sticky-headers .markdown-body > h2 {
+    top: 0;
+    z-index: 24;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.has-sticky-headers .markdown-section > h3,
+.has-sticky-headers .markdown-body > h3 {
+    top: 0;
+    z-index: 23;
+}
+
+.has-sticky-headers .markdown-section > h4 {
+    top: 0;
+    z-index: 22;
+}
+
+.has-sticky-headers .markdown-section > h5,
+.has-sticky-headers .markdown-section > h6 {
+    top: 0;
+    z-index: 21;
+}
+
+.markdown-body h1 {
+    font-size: 2.15em;
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.35em;
+}
+
+.markdown-body h2 {
+    font-size: 1.55em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 0.28em;
+}
+
+.markdown-body h3 {
+    font-size: 1.28em;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+}
+
+.markdown-body h4 {
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.markdown-body h5 {
+    font-size: 0.92em;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.markdown-body h6 {
+    font-size: 0.82em;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.heading-anchor {
+    position: absolute;
+    left: -1.25em;
+    color: var(--text-muted);
+    text-decoration: none;
+    opacity: 0;
+    font-weight: 400;
+    font-size: 0.9em;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.doc-heading:hover .heading-anchor {
+    opacity: 0.75;
+    color: var(--accent);
+}
+
+.markdown-body p {
+    margin-bottom: 1.1em;
+}
+
+.markdown-body strong, .markdown-body b {
+    font-weight: 650;
+    color: var(--text-heading);
+}
+
+.markdown-body a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+    border-bottom: 1px solid transparent;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.markdown-body a:hover {
+    color: var(--accent-hover);
+    border-bottom-color: var(--accent);
+    text-underline-offset: 3px;
+}
+
+.markdown-body ul, .markdown-body ol {
+    margin-bottom: 1.2em;
+    padding-left: 1.8em;
+}
+
+.markdown-body li {
+    margin-bottom: 0.38em;
+    line-height: 1.68;
+}
+
+.markdown-body ul > li::marker {
+    color: var(--accent);
+}
+
+.markdown-body ol > li::marker {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
+/* ================= Modern Task Lists & Checkboxes ================= */
+
+.markdown-body ul:has(input[type="checkbox"]),
+.markdown-body ol:has(input[type="checkbox"]),
+.markdown-body .task-list,
+.markdown-body .contains-task-list {
+    list-style-type: none;
+    padding-left: 0.25rem;
+}
+
+.markdown-body li:has(> input[type="checkbox"]),
+.markdown-body li:has(input[type="checkbox"]),
+.markdown-body .task-list-item {
+    list-style-type: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+    position: relative;
+    padding-left: 0;
+}
+
+.markdown-body li > input[type="checkbox"],
+.markdown-body .task-list-item-checkbox,
+.markdown-body input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 1.22em;
+    height: 1.22em;
+    min-width: 1.22em;
+    min-height: 1.22em;
+    border: 1.8px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--bg-surface);
+    cursor: pointer;
+    position: relative;
+    display: inline-grid;
+    place-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    flex-shrink: 0;
+    margin-top: 0.22em;
+    margin-right: 0;
+    vertical-align: -0.15em;
+    pointer-events: auto;
+}
+
+.markdown-body li > input[type="checkbox"]:hover,
+.markdown-body input[type="checkbox"]:hover {
+    border-color: var(--accent);
+    background-color: var(--bg-hover);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+    transform: translateY(-0.5px);
+}
+
+.markdown-body li > input[type="checkbox"]:checked,
+.markdown-body input[type="checkbox"]:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(88, 166, 255, 0.38);
+}
+
+.markdown-body li > input[type="checkbox"]:checked::after,
+.markdown-body input[type="checkbox"]:checked::after {
+    content: "";
+    width: 0.38em;
+    height: 0.65em;
+    border: solid var(--accent-text, #ffffff);
+    border-width: 0 2.2px 2.2px 0;
+    transform: rotate(45deg) translate(-0.5px, -1px);
+    display: block;
+}
+
+.markdown-body li:has(> input[type="checkbox"]:checked) {
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+}
+
+/* ================= Blockquotes ================= */
+
+.markdown-body blockquote {
+    border-left: 4px solid var(--accent);
+    background: linear-gradient(90deg, rgba(88, 166, 255, 0.07) 0%, var(--bg-surface) 100%);
+    padding: 12px 18px;
+    color: var(--text-main);
+    border-radius: 0 10px 10px 0;
+    margin: 1.4em 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    font-style: normal;
+}
+
+.markdown-body blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+.markdown-body blockquote blockquote {
+    border-left-color: var(--text-muted);
+    background: var(--bg-subtle);
+    margin: 0.8em 0;
+}
+
+/* ================= Keycaps (<kbd>) ================= */
+
+.markdown-body kbd {
+    display: inline-block;
+    padding: 2px 7px;
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    font-weight: 600;
+    color: var(--text-heading);
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-bottom: 2px solid var(--border-color);
+    border-radius: 5px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+    margin: 0 3px;
+    vertical-align: 0.06em;
+    letter-spacing: 0.02em;
+}
+
+/* ================= Divider (<hr>) ================= */
+
+.markdown-body hr {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--border-color) 25%, var(--border-color) 75%, transparent 100%);
+    border: none;
+    margin: 2.4em 0;
+}
+
+/* ================= Tables ================= */
+
+.markdown-body table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 1.6em 0;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.markdown-body th, .markdown-body td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    border-right: 1px solid var(--border-subtle);
+    text-align: left;
+    font-size: 0.95em;
+    transition: background-color 0.12s ease;
+}
+
+.markdown-body th {
+    background-color: var(--bg-subtle);
+    font-weight: 650;
+    font-size: 0.88em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-heading);
+    border-bottom: 1.5px solid var(--border-color);
+}
+
+.markdown-body th:last-child, .markdown-body td:last-child {
+    border-right: none;
+}
+
+.markdown-body tr:last-child td {
+    border-bottom: none;
+}
+
+.markdown-body tbody tr:nth-child(even) td {
+    background-color: rgba(255, 255, 255, 0.018);
+}
+
+.markdown-body tbody tr:hover td {
+    background-color: var(--bg-hover);
+}
+
+/* ================= Code Blocks & Syntax Highlighting ================= */
+
+.markdown-body code:not(pre code) {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background-color: var(--code-inline-bg);
+    color: var(--accent);
+    padding: 0.2em 0.48em;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    font-weight: 500;
+}
+
+.code-block-container {
+    background-color: var(--code-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    margin: 1.6em 0;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.code-lang-label {
+    font-family: var(--font-mono);
+    font-size: 0.76em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.copy-code-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 0.76em;
+    font-weight: 500;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.copy-code-button:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-heading);
+    border-color: var(--border-color);
+    transform: translateY(-0.5px);
+}
+
+.code-content pre {
+    margin: 0;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    line-height: 1.55;
+    tab-size: 4;
+}
+
+/* ================= Images & Media ================= */
+
+.markdown-body img {
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    max-width: 100%;
+    height: auto;
+    margin: 1.4em auto;
+    display: block;
+}
+
+/* ================= Details & Summary (Accordions) ================= */
+
+.markdown-body details {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin: 1.2em 0;
+    padding: 12px 16px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.markdown-body details[open] {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.markdown-body summary {
+    font-weight: 600;
+    color: var(--text-heading);
+    cursor: pointer;
+    user-select: none;
+    outline: none;
+    margin: -12px -16px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.15s ease;
+}
+
+.markdown-body summary:hover {
+    background-color: var(--bg-hover);
+    color: var(--accent);
+}
+
+/* ================= Footnotes ================= */
+
+.markdown-body sup a {
+    color: var(--accent);
+    text-decoration: none;
+    padding: 1px 5px;
+    font-size: 0.78em;
+    font-weight: 600;
+    border-radius: 4px;
+    background-color: var(--bg-subtle);
+    margin: 0 2px;
+}
+
+.markdown-body .footnotes {
+    margin-top: 3em;
+    padding-top: 1.5em;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.88em;
+    color: var(--text-muted);
+}
+
+/* ================= MDX Callouts & Components ================= */
+
+.mdx-callout {
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin: 1.4em 0;
+    border-left: 4.5px solid;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    font-size: 0.98em;
+    line-height: 1.6;
+}
+
+.mdx-callout p:last-child {
+    margin-bottom: 0;
+}
+
+.mdx-callout-info {
+    background-color: var(--callout-info-bg);
+    border-color: var(--callout-info-border);
+}
+
+.mdx-callout-warning {
+    background-color: var(--callout-warning-bg);
+    border-color: var(--callout-warning-border);
+}
+
+.mdx-callout-danger {
+    background-color: var(--callout-danger-bg);
+    border-color: var(--callout-danger-border);
+}
+
+.mdx-callout-tip {
+    background-color: var(--callout-tip-bg);
+    border-color: var(--callout-tip-border);
+}
+
+.mdx-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin: 1.4em 0;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mdx-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    border-color: var(--accent);
+}
+
+.mdx-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--accent);
+    color: var(--accent-text, #ffffff);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.78em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin: 0 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.mdx-steps {
+    border-left: 2px dashed var(--accent);
+    padding-left: 20px;
+    margin: 1.6em 0;
+    margin-left: 10px;
+}

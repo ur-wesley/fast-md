@@ -1,0 +1,95 @@
+/* ================= Settings Modal & Animations ================= */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scaleUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-up {
+    animation: scaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.settings-page {
+    position: relative;
+}
+
+.settings-page-header {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.settings-page-footer {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.settings-tab-btn:hover {
+    background-color: var(--bg-hover);
+}
+
+.theme-card:hover {
+    background-color: var(--bg-hover);
+    transform: translateY(-1px);
+}
+
+.theme-card.active-card {
+    background-color: var(--bg-subtle);
+    border-color: var(--accent);
+    box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.accent-color-chip {
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.accent-color-chip:hover {
+    transform: scale(1.1);
+}
+
+.accent-color-chip.active-chip {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 2px var(--bg-app), 0 0 0 4px var(--accent);
+}
+
+.settings-tab-trigger {
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    color: var(--text-muted);
+    border-radius: 8px;
+}
+
+.settings-tab-trigger:hover {
+    color: var(--text-heading);
+    background-color: var(--bg-hover);
+}
+
+.settings-tab-trigger[data-state="active"] {
+    color: var(--text-heading);
+    background-color: var(--bg-surface);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), inset 0 0 0 1px var(--border-color);
+}
+
+.settings-search-input:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+

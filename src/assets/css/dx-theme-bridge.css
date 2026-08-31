@@ -1,0 +1,24 @@
+html[class*="theme-"],
+.app-root {
+    --primary-color: var(--bg-app);
+    --primary-color-1: var(--bg-app);
+    --primary-color-2: var(--bg-surface);
+    --primary-color-3: var(--bg-subtle);
+    --primary-color-4: var(--bg-subtle);
+    --primary-color-5: var(--bg-hover);
+    --primary-color-6: var(--border-color);
+    --primary-color-7: var(--border-subtle);
+
+    --secondary-color: var(--text-heading);
+    --secondary-color-1: var(--text-heading);
+    --secondary-color-2: var(--accent);
+    --secondary-color-3: var(--text-main);
+    --secondary-color-4: var(--text-muted);
+    --secondary-color-5: var(--text-muted);
+    --secondary-color-6: var(--border-color);
+
+    --focused-border-color: var(--accent);
+    --primary-error-color: var(--callout-danger-border);
+    --secondary-error-color: var(--callout-danger-border);
+    --contrast-error-color: var(--text-heading);
+}
