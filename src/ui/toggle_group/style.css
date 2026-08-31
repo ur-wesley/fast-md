@@ -1,5 +1,6 @@
 .dx-toggle-group {
-  width: fit-content;
+  display: inline-flex;
+  box-sizing: border-box;
 }
 
 .dx-toggle-item {
