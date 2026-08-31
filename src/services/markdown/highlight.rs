@@ -1,10 +1,17 @@
 use super::{frontmatter, mdx};
 use crate::types::{DocumentFormat, ParsedDocument, TocItem};
 use pulldown_cmark::{html, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
+use std::fmt::Write;
 use std::sync::OnceLock;
-use syntect::highlighting::ThemeSet;
-use syntect::html::highlighted_html_for_string;
-use syntect::parsing::SyntaxSet;
+use syntect::easy::ScopeRegionIterator;
+use syntect::highlighting::{Highlighter, Theme, ThemeSet};
+use syntect::html::{
+    append_highlighted_html_for_styled_line, highlighted_html_for_string, start_highlighted_html_snippet,
+    IncludeBackground,
+};
+use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
+use syntect::util::LinesWithEndings;
+use syntect::Error;
 
 static SYNTAX_SET: OnceLock<SyntaxSet> = OnceLock::new();
 static THEME_SET: OnceLock<ThemeSet> = OnceLock::new();
@@ -42,6 +49,129 @@ pub(crate) fn slugify(text: &str) -> String {
     }
 }
 
+fn scope_is_string_or_comment(stack: &ScopeStack) -> bool {
+    stack.as_slice().iter().any(|scope| {
+        let name = scope.to_string();
+        name.contains("string") || name.contains("comment")
+    })
+}
+
+fn is_rainbow_bracket(c: char) -> bool {
+    matches!(c, '(' | ')' | '[' | ']' | '{' | '}')
+}
+
+fn rainbow_bracket_index(c: char, depth: &mut usize) -> usize {
+    if matches!(c, '(' | '[' | '{') {
+        let index = *depth % 6;
+        *depth += 1;
+        index
+    } else {
+        let index = depth.saturating_sub(1) % 6;
+        *depth = depth.saturating_sub(1);
+        index
+    }
+}
+
+fn append_config_token_html(
+    text: &str,
+    style: syntect::highlighting::Style,
+    bg: IncludeBackground,
+    output: &mut String,
+    bracket_depth: &mut usize,
+    in_string_or_comment: bool,
+) -> Result<(), Error> {
+    if text.is_empty() {
+        return Ok(());
+    }
+
+    if in_string_or_comment {
+        return append_highlighted_html_for_styled_line(&[(style, text)], bg, output);
+    }
+
+    let mut plain = String::new();
+    for c in text.chars() {
+        if is_rainbow_bracket(c) {
+            if !plain.is_empty() {
+                append_highlighted_html_for_styled_line(&[(style, &plain)], bg, output)?;
+                plain.clear();
+            }
+            let index = rainbow_bracket_index(c, bracket_depth);
+            write!(
+                output,
+                "<span class=\"rb rb-{index}\">{}</span>",
+                html_escape(&c.to_string())
+            )?;
+        } else {
+            plain.push(c);
+        }
+    }
+
+    if !plain.is_empty() {
+        append_highlighted_html_for_styled_line(&[(style, &plain)], bg, output)?;
+    }
+
+    Ok(())
+}
+
+fn append_config_line_html(
+    line: &str,
+    parse_state: &mut ParseState,
+    highlighter: &Highlighter<'_>,
+    scope_stack: &mut ScopeStack,
+    bracket_depth: &mut usize,
+    bg: IncludeBackground,
+    output: &mut String,
+    syntax_set: &SyntaxSet,
+) -> Result<(), Error> {
+    let ops = parse_state.parse_line(line, syntax_set)?;
+    for (text, op) in ScopeRegionIterator::new(&ops, line) {
+        scope_stack.apply(op)?;
+        if text.is_empty() {
+            continue;
+        }
+        let style = highlighter.style_for_stack(scope_stack.as_slice());
+        append_config_token_html(
+            text,
+            style,
+            bg,
+            output,
+            bracket_depth,
+            scope_is_string_or_comment(scope_stack),
+        )?;
+    }
+    Ok(())
+}
+
+/// Syntax-highlight config source with rainbow bracket nesting in preview HTML.
+pub fn highlighted_config_html_for_string(
+    source: &str,
+    syntax_set: &SyntaxSet,
+    syntax: &SyntaxReference,
+    theme: &Theme,
+) -> Result<String, Error> {
+    let highlighter = Highlighter::new(theme);
+    let mut parse_state = ParseState::new(syntax);
+    let mut scope_stack = ScopeStack::new();
+    let mut bracket_depth = 0usize;
+    let (mut output, bg) = start_highlighted_html_snippet(theme);
+
+    for line in LinesWithEndings::from(source) {
+        append_config_line_html(
+            line,
+            &mut parse_state,
+            &highlighter,
+            &mut scope_stack,
+            &mut bracket_depth,
+            IncludeBackground::IfDifferent(bg),
+            &mut output,
+            syntax_set,
+        )?;
+    }
+
+    output.push_str("</pre>\n");
+    Ok(output)
+}
+
 pub(crate) fn html_escape(input: &str) -> String {
     input
         .chars()
@@ -60,11 +190,44 @@ fn is_mdx_wrapper_close(html: &str) -> bool {
     matches!(html.trim(), "</div>" | "</span>")
 }
 
-fn close_open_section(events: &mut Vec<Event>, in_section: &mut bool) {
+fn close_open_section(
+    events: &mut Vec<Event>,
+    in_section: &mut bool,
+    in_section_body: &mut bool,
+) {
+    if *in_section_body {
+        events.push(Event::Html("</div>\n".into()));
+        *in_section_body = false;
+    }
     if *in_section {
         events.push(Event::Html("</section>\n".into()));
         *in_section = false;
     }
+}
+
+fn body_subslice_offset(raw: &str, body: &str) -> usize {
+    let raw_ptr = raw.as_ptr() as usize;
+    let body_ptr = body.as_ptr() as usize;
+    body_ptr - raw_ptr
+}
+
+fn is_src_line_block_start(tag: &Tag) -> bool {
+    matches!(
+        tag,
+        Tag::Paragraph
+            | Tag::BlockQuote(_)
+            | Tag::List(_)
+            | Tag::Item
+            | Tag::Table(_)
+            | Tag::HtmlBlock
+            | Tag::FootnoteDefinition(_)
+    )
+}
+
+fn push_src_line_sentinel(events: &mut Vec<Event>, line: usize) {
+    events.push(Event::Html(
+        format!("<div class=\"md-src-line\" data-source-line=\"{line}\"></div>\n").into(),
+    ));
 }
 
 /// Parse full Markdown/MDX text into rendered HTML with table of contents and metadata.
@@ -72,7 +235,9 @@ fn close_open_section(events: &mut Vec<Event>, in_section: &mut bool) {
 #[must_use]
 pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
     let (metadata, body) = frontmatter::extract_frontmatter(raw);
-    let preprocessed = mdx::preprocess_mdx(body);
+    let body_byte_offset = body_subslice_offset(raw, body);
+    let frontmatter_line_offset = raw[..body_byte_offset].matches('\n').count();
+    let (preprocessed, line_map) = mdx::preprocess_mdx(body);
 
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
@@ -89,13 +254,16 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
     let mut heading_text_buffer = String::new();
     let mut in_heading = false;
     let mut current_heading_level = 1u8;
+    let mut heading_source_line = 0usize;
 
     let mut code_block_content = String::new();
     let mut in_code_block = false;
     let mut code_block_lang = String::new();
+    let mut code_block_source_line = 0usize;
 
     let mut events_to_render = Vec::new();
     let mut in_section = false;
+    let mut in_section_body = false;
 
     let syntax_set = get_syntax_set();
     let theme_set = get_theme_set();
@@ -105,10 +273,20 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
         .or_else(|| theme_set.themes.get("InspiredGitHub"))
         .or_else(|| theme_set.themes.values().next());
 
-    for event in parser {
+    let file_line = |offset: usize| -> usize {
+        let preprocessed_line = preprocessed[..offset].matches('\n').count();
+        let body_line = line_map
+            .get(preprocessed_line)
+            .copied()
+            .unwrap_or(preprocessed_line);
+        frontmatter_line_offset + body_line
+    };
+
+    for (event, range) in parser.into_offset_iter() {
         match event {
             Event::Start(Tag::Heading { level, .. }) => {
                 in_heading = true;
+                heading_source_line = file_line(range.start);
                 current_heading_level = match level {
                     HeadingLevel::H1 => 1,
                     HeadingLevel::H2 => 2,
@@ -118,12 +296,13 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
                     HeadingLevel::H6 => 6,
                 };
                 heading_text_buffer.clear();
-                if in_section {
-                    events_to_render.push(Event::Html("</section>\n".into()));
-                }
+                close_open_section(&mut events_to_render, &mut in_section, &mut in_section_body);
                 in_section = true;
                 events_to_render.push(Event::Html(
-                    format!("<section class=\"markdown-section markdown-section-h{current_heading_level}\">\n").into(),
+                    format!(
+                        "<section class=\"markdown-section markdown-section-h{current_heading_level}\" data-source-line=\"{heading_source_line}\">\n"
+                    )
+                    .into(),
                 ));
             }
             Event::End(TagEnd::Heading(_)) => {
@@ -135,20 +314,27 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
                     id: id.clone(),
                     title: title.clone(),
                     level: current_heading_level,
+                    line: Some(heading_source_line),
                 });
 
                 let heading_tag = format!("h{current_heading_level}");
                 events_to_render.push(Event::Html(
                     format!("<{heading_tag} id=\"{id}\" class=\"doc-heading\"><a href=\"#{id}\" class=\"heading-anchor\">#</a> {title}</{heading_tag}>\n").into(),
                 ));
+                events_to_render.push(Event::Html(
+                    "<div class=\"markdown-section-body\">\n".into(),
+                ));
+                in_section_body = true;
             }
             Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(lang))) => {
                 in_code_block = true;
+                code_block_source_line = file_line(range.start);
                 code_block_content.clear();
                 code_block_lang = lang.as_ref().to_string();
             }
             Event::Start(Tag::CodeBlock(CodeBlockKind::Indented)) => {
                 in_code_block = true;
+                code_block_source_line = file_line(range.start);
                 code_block_content.clear();
                 code_block_lang.clear();
             }
@@ -173,7 +359,7 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
                 let escaped_code_attr = html_escape(&code_block_content);
 
                 let wrapped_code = format!(
-                    "<div class=\"code-block-container\">\
+                    "<div class=\"code-block-container\" data-source-line=\"{code_block_source_line}\">\
                         <div class=\"code-header\">\
                             <span class=\"code-lang-label\">{lang_badge}</span>\
                             <button class=\"copy-code-button\" data-code=\"{escaped_code_attr}\" onclick=\"copyCodeSnippet(this)\">\
@@ -186,6 +372,16 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
                 );
 
                 events_to_render.push(Event::Html(wrapped_code.into()));
+            }
+            Event::Rule if !in_heading && !in_code_block => {
+                push_src_line_sentinel(&mut events_to_render, file_line(range.start));
+                events_to_render.push(event);
+            }
+            Event::Start(ref tag)
+                if !in_heading && !in_code_block && is_src_line_block_start(tag) =>
+            {
+                push_src_line_sentinel(&mut events_to_render, file_line(range.start));
+                events_to_render.push(event);
             }
             Event::Text(ref text) => {
                 if in_heading {
@@ -206,7 +402,11 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
                 if !in_heading && !in_code_block {
                     if let Event::Html(ref html) = other {
                         if is_mdx_wrapper_close(html) {
-                            close_open_section(&mut events_to_render, &mut in_section);
+                            close_open_section(
+                                &mut events_to_render,
+                                &mut in_section,
+                                &mut in_section_body,
+                            );
                         }
                     }
                     events_to_render.push(other);
@@ -215,9 +415,7 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
         }
     }
 
-    if in_section {
-        close_open_section(&mut events_to_render, &mut in_section);
-    }
+    close_open_section(&mut events_to_render, &mut in_section, &mut in_section_body);
 
     html::push_html(&mut html_output, events_to_render.into_iter());
 
@@ -254,11 +452,17 @@ mod tests {
         assert_eq!(doc.toc.len(), 2);
         assert_eq!(doc.toc[0].title, "Getting Started");
         assert_eq!(doc.toc[0].level, 1);
+        assert_eq!(doc.toc[0].line, Some(0));
         assert_eq!(doc.toc[1].title, "Subheading");
         assert_eq!(doc.toc[1].level, 2);
-        assert!(doc.html_content.contains("<section class=\"markdown-section markdown-section-h1\">"));
-        assert!(doc.html_content.contains("<section class=\"markdown-section markdown-section-h2\">"));
+        assert_eq!(doc.toc[1].line, Some(4));
+        assert!(doc.html_content.contains("data-source-line=\"0\""));
+        assert!(doc.html_content.contains("data-source-line=\"4\""));
+        assert!(doc.html_content.contains("<section class=\"markdown-section markdown-section-h1\""));
+        assert!(doc.html_content.contains("<section class=\"markdown-section markdown-section-h2\""));
+        assert!(doc.html_content.contains("markdown-section-body"));
         assert!(doc.html_content.contains("code-block-container"));
+        assert!(doc.html_content.contains("md-src-line"));
         assert!(doc.word_count > 0);
     }
 
@@ -302,11 +506,14 @@ mod tests {
             "card inner markdown should not stay literal: {}",
             doc.html_content
         );
-        let card_close = doc.html_content.find("</div>").expect("card div close");
         let section_close = doc
             .html_content
             .find("</section>")
             .expect("section close");
+        let card_close = doc
+            .html_content
+            .rfind("</div>")
+            .expect("card div close");
         assert!(
             section_close < card_close,
             "section must close before card wrapper: {}",

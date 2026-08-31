@@ -1,3 +1,12 @@
+.md-src-line {
+    height: 0;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    pointer-events: none;
+}
+
 /* ================= Main Document Viewer Area (OS Native Frosted Glass) ================= */
 
 .app-main-viewer {
@@ -110,6 +119,11 @@
 
 .markdown-section:first-child {
     margin-top: 0;
+}
+
+.markdown-section-body {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 24rem;
 }
 
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 {
@@ -268,14 +282,62 @@
     text-underline-offset: 3px;
 }
 
-.markdown-body ul, .markdown-body ol {
+.markdown-body ul {
+    list-style-type: disc;
+    list-style-position: outside;
+}
+
+.markdown-body ul ul {
+    list-style-type: circle;
+}
+
+.markdown-body ul ul ul {
+    list-style-type: square;
+}
+
+.markdown-body ol {
+    list-style-type: decimal;
+    list-style-position: outside;
+}
+
+.markdown-body ol ol {
+    list-style-type: lower-alpha;
+}
+
+.markdown-body ol ol ol {
+    list-style-type: lower-roman;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+    margin-top: 0;
     margin-bottom: 1.2em;
     padding-left: 1.8em;
 }
 
+.markdown-body li ul,
+.markdown-body li ol {
+    margin-top: 0.35em;
+    margin-bottom: 0.35em;
+    padding-left: 1.35em;
+}
+
 .markdown-body li {
-    margin-bottom: 0.38em;
+    margin-bottom: 0.28em;
     line-height: 1.68;
+}
+
+.markdown-body li:last-child {
+    margin-bottom: 0;
+}
+
+.markdown-body li > p {
+    margin-top: 0;
+    margin-bottom: 0.45em;
+}
+
+.markdown-body li > p:last-child {
+    margin-bottom: 0;
 }
 
 .markdown-body ul > li::marker {
