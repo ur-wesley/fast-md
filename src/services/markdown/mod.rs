@@ -42,6 +42,8 @@ mod tests {
         assert!(doc.validation_error.is_none());
         assert!(!doc.toc.is_empty());
         assert!(doc.toc.iter().any(|t| t.title.contains("name")));
+        let name_item = doc.toc.iter().find(|t| t.title.contains("name")).expect("name toc item");
+        assert_eq!(name_item.line, Some(1));
         assert!(doc.html_content.contains("config-doc-container"));
         assert!(doc.html_content.contains("JSON"));
     }
@@ -54,8 +56,22 @@ mod tests {
         assert!(doc.validation_error.is_none());
         assert_eq!(doc.toc.len(), 2);
         assert_eq!(doc.toc[0].title, "[package]");
+        assert_eq!(doc.toc[0].line, Some(0));
         assert_eq!(doc.toc[1].title, "[dependencies]");
+        assert_eq!(doc.toc[1].line, Some(4));
         assert!(doc.html_content.contains("TOML"));
+    }
+
+    #[test]
+    fn test_parse_yaml_document_and_toc_line() {
+        let yaml_raw = "title: fast-md\nversion: 0.1.2\n";
+        let doc = parse_document(yaml_raw, DocumentFormat::Yaml);
+        assert!(doc.validation_error.is_none());
+        assert_eq!(doc.toc.len(), 2);
+        assert_eq!(doc.toc[0].title, "title");
+        assert_eq!(doc.toc[0].line, Some(0));
+        assert_eq!(doc.toc[1].title, "version");
+        assert_eq!(doc.toc[1].line, Some(1));
     }
 
     #[test]
@@ -64,5 +80,22 @@ mod tests {
         let doc = parse_document(invalid_yaml, DocumentFormat::Yaml);
         assert!(doc.validation_error.is_some());
         assert!(doc.html_content.contains("config-syntax-error-banner"));
+    }
+
+    #[test]
+    fn test_config_rainbow_brackets_nested_json() {
+        let json_raw = r#"{"a":[1]}"#;
+        let doc = parse_document(json_raw, DocumentFormat::Json);
+        assert!(doc.html_content.contains("class=\"rb rb-0\">{</span>"));
+        assert!(doc.html_content.contains("class=\"rb rb-0\">}</span>"));
+        assert!(doc.html_content.contains("class=\"rb rb-1\">[</span>"));
+        assert!(doc.html_content.contains("class=\"rb rb-1\">]</span>"));
+    }
+
+    #[test]
+    fn test_config_rainbow_brackets_skip_inside_strings() {
+        let json_raw = r#""hello { world }""#;
+        let doc = parse_document(json_raw, DocumentFormat::Json);
+        assert!(!doc.html_content.contains("class=\"rb"));
     }
 }

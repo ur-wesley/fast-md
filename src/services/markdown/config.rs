@@ -1,6 +1,5 @@
-use super::highlight::{get_syntax_set, get_theme_set, html_escape, slugify};
+use super::highlight::{get_syntax_set, get_theme_set, highlighted_config_html_for_string, html_escape, slugify};
 use crate::types::{DocumentFormat, ParsedDocument, TocItem};
-use syntect::html::highlighted_html_for_string;
 
 /// Validate configuration syntax for JSON, TOML, YAML.
 pub fn validate_document(content: &str, format: DocumentFormat) -> Result<(), String> {
@@ -27,6 +26,16 @@ pub fn validate_document(content: &str, format: DocumentFormat) -> Result<(), St
     }
 }
 
+fn json_key_source_line(raw: &str, key: &str) -> Option<usize> {
+    let needle = format!("\"{key}\":");
+    for (line_idx, line) in raw.lines().enumerate() {
+        if line.trim().contains(&needle) {
+            return Some(line_idx);
+        }
+    }
+    None
+}
+
 /// Extract structural outline/TOC for config formats (TOML sections, JSON top keys, YAML top keys).
 #[must_use]
 pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
@@ -34,7 +43,7 @@ pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
 
     match format {
         DocumentFormat::Toml => {
-            for line in raw.lines() {
+            for (line_idx, line) in raw.lines().enumerate() {
                 let trimmed = line.trim();
                 if (trimmed.starts_with('[') && trimmed.ends_with(']')) && !trimmed.starts_with("[[") {
                     let section_name = trimmed.trim_start_matches('[').trim_end_matches(']').trim();
@@ -44,6 +53,7 @@ pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
                         id,
                         title: format!("[{section_name}]"),
                         level,
+                        line: Some(line_idx),
                     });
                 } else if trimmed.starts_with("[[") && trimmed.ends_with("]]") {
                     let section_name = trimmed.trim_start_matches('[').trim_end_matches(']').trim();
@@ -52,6 +62,7 @@ pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
                         id,
                         title: format!("[[{section_name}]]"),
                         level: 2,
+                        line: Some(line_idx),
                     });
                 }
             }
@@ -64,10 +75,11 @@ pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
                         id,
                         title: format!("\"{key}\""),
                         level: 1,
+                        line: json_key_source_line(raw, key),
                     });
                 }
             } else {
-                for line in raw.lines() {
+                for (line_idx, line) in raw.lines().enumerate() {
                     let trimmed = line.trim();
                     if let Some(stripped) = trimmed.strip_prefix('"') {
                         if let Some(quote_end) = stripped.find('"') {
@@ -79,6 +91,7 @@ pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
                                     id,
                                     title: format!("\"{key}\""),
                                     level: 1,
+                                    line: Some(line_idx),
                                 });
                             }
                         }
@@ -87,7 +100,7 @@ pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
             }
         }
         DocumentFormat::Yaml => {
-            for line in raw.lines() {
+            for (line_idx, line) in raw.lines().enumerate() {
                 let trimmed = line.trim_end();
                 if !trimmed.starts_with(' ') && !trimmed.starts_with('\t') && trimmed.contains(':') && !trimmed.starts_with('#') {
                     if let Some((k, _)) = trimmed.split_once(':') {
@@ -98,6 +111,7 @@ pub fn extract_config_toc(raw: &str, format: DocumentFormat) -> Vec<TocItem> {
                                 id,
                                 title: clean_k.to_string(),
                                 level: 1,
+                                line: Some(line_idx),
                             });
                         }
                     }
@@ -122,7 +136,7 @@ pub fn parse_config_document(raw: &str, format: DocumentFormat) -> ParsedDocumen
 
     let highlighted_code = theme_set.themes.get("base16-ocean.dark").map_or_else(
         || format!("<pre><code>{}</code></pre>", html_escape(raw)),
-        |th| highlighted_html_for_string(raw, syntax_set, syntax, th)
+        |th| highlighted_config_html_for_string(raw, syntax_set, syntax, th)
             .unwrap_or_else(|_| format!("<pre><code>{}</code></pre>", html_escape(raw))),
     );
 

@@ -19,6 +19,7 @@ pub struct TocItem {
     pub id: String,
     pub title: String,
     pub level: u8,
+    pub line: Option<usize>,
 }
 
 /// Supported document and config file formats.
@@ -121,4 +122,5 @@ pub struct TabItem {
     pub content: String,
     pub parsed: ParsedDocument,
     pub is_dirty: bool,
+    pub html_revision: u64,
 }
