@@ -196,6 +196,12 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
                     events_to_render.push(event);
                 }
             }
+            Event::TaskListMarker(checked) => {
+                let checked_attr = if checked { " checked=\"\"" } else { "" };
+                events_to_render.push(Event::Html(
+                    format!("<input type=\"checkbox\"{checked_attr}/> ").into(),
+                ));
+            }
             other => {
                 if !in_heading && !in_code_block {
                     if let Event::Html(ref html) = other {
@@ -254,6 +260,15 @@ mod tests {
         assert!(doc.html_content.contains("<section class=\"markdown-section markdown-section-h2\">"));
         assert!(doc.html_content.contains("code-block-container"));
         assert!(doc.word_count > 0);
+    }
+
+    #[test]
+    fn test_parse_markdown_tasklists() {
+        let raw = "- [ ] Unchecked Task\n- [x] Checked Task";
+        let doc = parse_markdown_document(raw);
+        assert!(doc.html_content.contains("<input type=\"checkbox\"/>"));
+        assert!(doc.html_content.contains("<input type=\"checkbox\" checked=\"\"/>"));
+        assert!(!doc.html_content.contains("disabled"));
     }
 
     #[test]
