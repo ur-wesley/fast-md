@@ -92,6 +92,7 @@ pub struct EditorTranslations {
     pub insert_json_array: &'static str,
     pub insert_json_kv: &'static str,
     pub insert_toml_section: &'static str,
+    pub insert_toml_array_table: &'static str,
     pub insert_yaml_kv: &'static str,
     pub insert_yaml_list: &'static str,
     pub valid_syntax: &'static str,
@@ -135,12 +136,16 @@ pub struct StatusBarTranslations {
     pub sec_suffix: &'static str,
     pub status_saved: &'static str,
     pub status_unsaved: &'static str,
+    pub cycle_mode: &'static str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TabBarTranslations {
     pub new_file_or_tab: &'static str,
     pub close_tab: &'static str,
+    pub unsaved_changes: &'static str,
+    pub no_open_tabs: &'static str,
+    pub no_open_tabs_desc: &'static str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -169,10 +174,18 @@ pub struct SettingsTranslations {
     pub auto_save_notice: &'static str,
     pub close_tooltip: &'static str,
 
+    // Search
+    pub search_placeholder: &'static str,
+    pub search_results_title: &'static str,
+    pub no_results_title: &'static str,
+    pub no_results_desc: &'static str,
+    pub clear_search: &'static str,
+
     // Navigation Tabs
     pub tab_appearance: &'static str,
     pub tab_reader: &'static str,
     pub tab_workspace: &'static str,
+    pub tab_shortcuts: &'static str,
     pub tab_config_file: &'static str,
     pub tab_updates: &'static str,
 
@@ -227,6 +240,10 @@ pub struct SettingsTranslations {
     pub sidebar_tab_desc: &'static str,
     pub sidebar_tab_toc: &'static str,
     pub sidebar_tab_files: &'static str,
+    pub sidebar_position_title: &'static str,
+    pub sidebar_position_desc: &'static str,
+    pub sidebar_position_left: &'static str,
+    pub sidebar_position_right: &'static str,
     pub sidebar_visibility_title: &'static str,
     pub sidebar_visibility_desc: &'static str,
     pub file_filter_mode_title: &'static str,
@@ -263,6 +280,121 @@ pub struct SettingsTranslations {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ContextMenuTranslations {
+    pub cut: &'static str,
+    pub copy: &'static str,
+    pub paste: &'static str,
+    pub select_all: &'static str,
+    pub open: &'static str,
+    pub refresh: &'static str,
+    pub close_others: &'static str,
+    pub copy_selection: &'static str,
+    pub open_link: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShortcutsTranslations {
+    pub tab_title: &'static str,
+    pub title: &'static str,
+    pub description: &'static str,
+    pub reset_all: &'static str,
+    pub reset_shortcut: &'static str,
+    pub press_keys: &'static str,
+    pub click_to_record: &'static str,
+    pub recording: &'static str,
+    pub category_file: &'static str,
+    pub category_layout: &'static str,
+    pub category_editor: &'static str,
+    pub category_view: &'static str,
+
+    // Actions
+    pub action_save: &'static str,
+    pub action_save_desc: &'static str,
+    pub action_save_as: &'static str,
+    pub action_save_as_desc: &'static str,
+    pub action_open_file: &'static str,
+    pub action_open_file_desc: &'static str,
+    pub action_open_folder: &'static str,
+    pub action_open_folder_desc: &'static str,
+    pub action_new_tab: &'static str,
+    pub action_new_tab_desc: &'static str,
+    pub action_close_tab: &'static str,
+    pub action_close_tab_desc: &'static str,
+    pub action_toggle_sidebar: &'static str,
+    pub action_toggle_sidebar_desc: &'static str,
+    pub action_toggle_zen: &'static str,
+    pub action_toggle_zen_desc: &'static str,
+    pub action_cycle_mode: &'static str,
+    pub action_cycle_mode_desc: &'static str,
+    pub action_find: &'static str,
+    pub action_find_desc: &'static str,
+    pub action_format_document: &'static str,
+    pub action_format_document_desc: &'static str,
+    pub action_zoom_in: &'static str,
+    pub action_zoom_in_desc: &'static str,
+    pub action_zoom_out: &'static str,
+    pub action_zoom_out_desc: &'static str,
+    pub action_reset_zoom: &'static str,
+    pub action_reset_zoom_desc: &'static str,
+    pub action_toggle_settings: &'static str,
+    pub action_toggle_settings_desc: &'static str,
+}
+
+impl ShortcutsTranslations {
+    #[must_use]
+    pub const fn action_name(self, action: crate::types::ShortcutAction) -> &'static str {
+        match action {
+            crate::types::ShortcutAction::Save => self.action_save,
+            crate::types::ShortcutAction::SaveAs => self.action_save_as,
+            crate::types::ShortcutAction::OpenFile => self.action_open_file,
+            crate::types::ShortcutAction::OpenFolder => self.action_open_folder,
+            crate::types::ShortcutAction::NewTab => self.action_new_tab,
+            crate::types::ShortcutAction::CloseTab => self.action_close_tab,
+            crate::types::ShortcutAction::ToggleSidebar => self.action_toggle_sidebar,
+            crate::types::ShortcutAction::ToggleZen => self.action_toggle_zen,
+            crate::types::ShortcutAction::CycleMode => self.action_cycle_mode,
+            crate::types::ShortcutAction::Find => self.action_find,
+            crate::types::ShortcutAction::FormatDocument => self.action_format_document,
+            crate::types::ShortcutAction::ZoomIn => self.action_zoom_in,
+            crate::types::ShortcutAction::ZoomOut => self.action_zoom_out,
+            crate::types::ShortcutAction::ResetZoom => self.action_reset_zoom,
+            crate::types::ShortcutAction::ToggleSettings => self.action_toggle_settings,
+        }
+    }
+
+    #[must_use]
+    pub const fn action_desc(self, action: crate::types::ShortcutAction) -> &'static str {
+        match action {
+            crate::types::ShortcutAction::Save => self.action_save_desc,
+            crate::types::ShortcutAction::SaveAs => self.action_save_as_desc,
+            crate::types::ShortcutAction::OpenFile => self.action_open_file_desc,
+            crate::types::ShortcutAction::OpenFolder => self.action_open_folder_desc,
+            crate::types::ShortcutAction::NewTab => self.action_new_tab_desc,
+            crate::types::ShortcutAction::CloseTab => self.action_close_tab_desc,
+            crate::types::ShortcutAction::ToggleSidebar => self.action_toggle_sidebar_desc,
+            crate::types::ShortcutAction::ToggleZen => self.action_toggle_zen_desc,
+            crate::types::ShortcutAction::CycleMode => self.action_cycle_mode_desc,
+            crate::types::ShortcutAction::Find => self.action_find_desc,
+            crate::types::ShortcutAction::FormatDocument => self.action_format_document_desc,
+            crate::types::ShortcutAction::ZoomIn => self.action_zoom_in_desc,
+            crate::types::ShortcutAction::ZoomOut => self.action_zoom_out_desc,
+            crate::types::ShortcutAction::ResetZoom => self.action_reset_zoom_desc,
+            crate::types::ShortcutAction::ToggleSettings => self.action_toggle_settings_desc,
+        }
+    }
+
+    #[must_use]
+    pub const fn category_name(self, category: crate::types::ShortcutCategory) -> &'static str {
+        match category {
+            crate::types::ShortcutCategory::FileAndTabs => self.category_file,
+            crate::types::ShortcutCategory::LayoutAndModes => self.category_layout,
+            crate::types::ShortcutCategory::EditorAndSearch => self.category_editor,
+            crate::types::ShortcutCategory::ViewAndPreferences => self.category_view,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Translations {
     pub common: CommonTranslations,
     pub title_bar: TitleBarTranslations,
@@ -275,6 +407,8 @@ pub struct Translations {
     pub zen: ZenTranslations,
     pub search_bar: SearchBarTranslations,
     pub settings: SettingsTranslations,
+    pub context_menu: ContextMenuTranslations,
+    pub shortcuts: ShortcutsTranslations,
 }
 
 /// Retrieve the translation bundle for a given language.
@@ -319,6 +453,14 @@ mod tests {
         assert!(!en.sidebar.reading_progress.is_empty());
         assert!(!de.sidebar.reading_progress.is_empty());
 
+        // Verify tab bar
+        assert!(!en.tab_bar.close_tab.is_empty());
+        assert!(!de.tab_bar.close_tab.is_empty());
+        assert!(!en.tab_bar.no_open_tabs.is_empty());
+        assert!(!de.tab_bar.no_open_tabs.is_empty());
+        assert!(!en.tab_bar.no_open_tabs_desc.is_empty());
+        assert!(!de.tab_bar.no_open_tabs_desc.is_empty());
+
         // Verify status bar
         assert!(!en.status_bar.words_suffix.is_empty());
         assert!(!de.status_bar.words_suffix.is_empty());
@@ -344,5 +486,22 @@ mod tests {
         assert!(!de.settings.tab_updates.is_empty());
         assert!(!en.settings.check_for_updates_button.is_empty());
         assert!(!de.settings.check_for_updates_button.is_empty());
+
+        assert!(!en.context_menu.cut.is_empty());
+        assert!(!de.context_menu.cut.is_empty());
+        assert!(!en.context_menu.open_link.is_empty());
+        assert!(!de.context_menu.open_link.is_empty());
+
+        // Verify shortcuts
+        assert!(!en.shortcuts.tab_title.is_empty());
+        assert!(!de.shortcuts.tab_title.is_empty());
+        assert!(!en.shortcuts.reset_all.is_empty());
+        assert!(!de.shortcuts.reset_all.is_empty());
+        for &action in crate::types::ShortcutAction::all() {
+            assert!(!en.shortcuts.action_name(action).is_empty());
+            assert!(!de.shortcuts.action_name(action).is_empty());
+            assert!(!en.shortcuts.action_desc(action).is_empty());
+            assert!(!de.shortcuts.action_desc(action).is_empty());
+        }
     }
 }
