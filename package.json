@@ -1,5 +1,30 @@
 {
   "name": "fast-md",
   "version": "0.2.1",
-  "private": true
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun run build:css && bun run build:js",
+    "build:css": "bun node_modules/@tailwindcss/cli/dist/index.mjs -i src/assets/css/tailwind.css -o src/assets/generated/tailwind.css --minify",
+    "build:js": "bun build src/frontend/index.ts --outfile src/assets/generated/helpers.js --target browser --minify",
+    "watch": "bun scripts/watch.ts",
+    "watch:css": "bun node_modules/@tailwindcss/cli/dist/index.mjs -i src/assets/css/tailwind.css -o src/assets/generated/tailwind.css --watch",
+    "watch:js": "bun build src/frontend/index.ts --outfile src/assets/generated/helpers.js --target browser --watch",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "check": "oxlint && oxfmt --check",
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "latest",
+    "lefthook": "latest",
+    "oxfmt": "latest",
+    "oxlint": "latest",
+    "oxlint-tsgolint": "latest",
+    "tailwindcss": "latest",
+    "typescript": "^7.0.0"
+  },
+  "packageManager": "bun@1.2.0"
 }

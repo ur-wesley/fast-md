@@ -1,0 +1,18 @@
+pre-commit:
+  commands:
+    fmt:
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,md}"
+      run: bun x oxfmt --write {staged_files}
+      stage_fixed: true
+    lint-fix:
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
+      run: bun x oxlint --fix {staged_files}
+      stage_fixed: true
+    build-assets:
+      glob: "{src/frontend/**,src/assets/css/tailwind.css}"
+      run: bun run build && git add src/assets/generated/
+
+pre-push:
+  commands:
+    check:
+      run: bun run check

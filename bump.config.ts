@@ -1,13 +1,10 @@
 /** @type {import('bumpp').VersionBumpOptions} */
 export default {
   // Target version tracking files
-  files: [
-    'package.json',
-    'Cargo.toml',
-  ],
+  files: ["package.json", "Cargo.toml"],
 
   // Conventional commit message (v%s replaces %s with new version)
-  commit: 'chore(release): v%s',
+  commit: "chore(release): v%s",
 
   // Git tag (true defaults to v<version>, or use 'v%s')
   tag: true,
@@ -22,5 +19,5 @@ export default {
   confirm: true,
 
   // Synchronize Cargo.lock and verify workspace integrity before finalizing commit
-  execute: 'cargo check',
-}
+  execute: "cargo check",
+};
