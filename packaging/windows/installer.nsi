@@ -1,4 +1,5 @@
 !include "MUI2.nsh"
+!cd "${__FILEDIR__}/../.."
 
 !define PRODUCT_NAME "Fast-MD"
 !define PRODUCT_PUBLISHER "ur-wesley"

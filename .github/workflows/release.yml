@@ -63,9 +63,10 @@ jobs:
           shasum -a 256 "fast-md-$VERSION-windows-x86_64.zip" > "fast-md-$VERSION-windows-x86_64.zip.sha256"
 
           # 2. Setup Installer (.exe)
-          makensis -DPRODUCT_VERSION="$VERSION" \
-                   -DOUT_FILE="fast-md-$VERSION-windows-x86_64-setup.exe" \
-                   -DBIN_PATH="$BIN_PATH" \
+          makensis -NOCD \
+                   -DPRODUCT_VERSION="$VERSION" \
+                   -DOUT_FILE="${GITHUB_WORKSPACE}/fast-md-$VERSION-windows-x86_64-setup.exe" \
+                   -DBIN_PATH="${GITHUB_WORKSPACE}/${BIN_PATH}" \
                    packaging/windows/installer.nsi
           shasum -a 256 "fast-md-$VERSION-windows-x86_64-setup.exe" > "fast-md-$VERSION-windows-x86_64-setup.exe.sha256"
 
