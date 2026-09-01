@@ -25,7 +25,10 @@ jobs:
       - name: Install cross-compilation & packaging tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y nsis lld clang zip
+          sudo apt-get install -y nsis lld clang llvm zip
+          LLVM_AR="$(command -v llvm-ar || ls /usr/bin/llvm-ar-[0-9]* | sort -V | tail -1)"
+          test -n "$LLVM_AR" && test -x "$LLVM_AR"
+          sudo ln -sf "$LLVM_AR" /usr/local/bin/llvm-lib
           cargo install cargo-xwin --locked
 
       - name: Rust Cache
