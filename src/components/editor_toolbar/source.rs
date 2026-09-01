@@ -20,7 +20,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
 
     rsx! {
         div {
-            class: "inline-flex items-center bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-0.5",
+            class: "inline-flex items-stretch h-full",
             Hint {
                 text: t.editor.bold,
                 side: ContentSide::Bottom,
@@ -28,6 +28,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-bold",
                     "data-tool": "bold",
                     onclick: move |_| {
@@ -43,6 +44,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-italic",
                     "data-tool": "italic",
                     onclick: move |_| {
@@ -58,6 +60,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-strikethrough",
                     "data-tool": "strikethrough",
                     onclick: move |_| {
@@ -73,6 +76,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-code",
                     "data-tool": "code",
                     onclick: move |_| {
@@ -83,10 +87,10 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
             }
         }
 
-        div { class: "w-[1px] h-4 bg-[var(--border-color)] mx-0.5" }
+        div { class: "toolbar-inner-sep" }
 
         div {
-            class: "inline-flex items-center bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-0.5",
+            class: "inline-flex items-stretch h-full",
             Hint {
                 text: t.editor.h1,
                 side: ContentSide::Bottom,
@@ -94,6 +98,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-h1",
                     "data-tool": "h1",
                     onclick: move |_| {
@@ -109,6 +114,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-h2",
                     "data-tool": "h2",
                     onclick: move |_| {
@@ -124,6 +130,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-h3",
                     "data-tool": "h3",
                     onclick: move |_| {
@@ -134,10 +141,10 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
             }
         }
 
-        div { class: "w-[1px] h-4 bg-[var(--border-color)] mx-0.5" }
+        div { class: "toolbar-inner-sep" }
 
         div {
-            class: "inline-flex items-center bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-0.5",
+            class: "inline-flex items-stretch h-full",
             Hint {
                 text: t.editor.bullet_list,
                 side: ContentSide::Bottom,
@@ -145,6 +152,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-ul",
                     "data-tool": "ul",
                     onclick: move |_| {
@@ -160,6 +168,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-ol",
                     "data-tool": "ol",
                     onclick: move |_| {
@@ -175,6 +184,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-task",
                     "data-tool": "task",
                     onclick: move |_| {
@@ -190,6 +200,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-quote",
                     "data-tool": "quote",
                     onclick: move |_| {
@@ -200,10 +211,10 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
             }
         }
 
-        div { class: "w-[1px] h-4 bg-[var(--border-color)] mx-0.5" }
+        div { class: "toolbar-inner-sep" }
 
         div {
-            class: "inline-flex items-center bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-0.5",
+            class: "inline-flex items-stretch h-full",
             Hint {
                 text: t.editor.code_block,
                 side: ContentSide::Bottom,
@@ -211,6 +222,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-codeblock",
                     "data-tool": "codeblock",
                     onclick: move |_| {
@@ -226,6 +238,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-table",
                     "data-tool": "table",
                     onclick: move |_| {
@@ -241,6 +254,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-link",
                     "data-tool": "link",
                     onclick: move |_| {
@@ -256,6 +270,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-image",
                     "data-tool": "image",
                     onclick: move |_| {
@@ -271,6 +286,7 @@ pub fn SourceFormattingTools(props: SourceFormattingToolsProps) -> Element {
                 Button {
                     variant: ButtonVariant::Ghost,
                     size: ButtonSize::IconSm,
+                    class: "toolbar-action-btn-flat",
                     id: "toolbar-btn-callout",
                     "data-tool": "callout",
                     onclick: move |_| {

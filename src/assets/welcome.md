@@ -71,13 +71,13 @@ pub fn Counter() -> Element {
 - [ ] Try clicking on checkboxes directly in the viewer to toggle tasks
 - [ ] Customize keyboard shortcuts and editor preferences in Settings
 
-| Feature | Fast-MD (Dioxus) | Typical Electron Viewer |
-| :--- | :--- | :--- |
-| **Startup Time** | **< 150ms** | 1.5s - 3.5s |
-| **Memory Usage** | **~35 MB** | 180MB - 350MB |
-| **Code Highlighting** | **Native Rust (syntect)** | Client-side JS |
-| **Live Reload** | **OS Event (notify)** | Polling / Dev server |
+| Feature               | Fast-MD (Dioxus)          | Typical Electron Viewer |
+| :-------------------- | :------------------------ | :---------------------- |
+| **Startup Time**      | **< 150ms**               | 1.5s - 3.5s             |
+| **Memory Usage**      | **~35 MB**                | 180MB - 350MB           |
+| **Code Highlighting** | **Native Rust (syntect)** | Client-side JS          |
+| **Live Reload**       | **OS Event (notify)**     | Polling / Dev server    |
 
 ---
 
-*Enjoy reading documentation at native speed!*
+_Enjoy reading documentation at native speed!_

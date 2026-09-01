@@ -1,0 +1,9 @@
+import "./clipboard";
+import "./search";
+import "./editor";
+import "./history";
+import "./wysiwyg";
+import "./toolbar_state";
+import "./scroll";
+import "./contextmenu";
+import "./shortcuts";

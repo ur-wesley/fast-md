@@ -13,7 +13,7 @@
   border-radius: 10px;
   box-shadow: 0 0 0 1px var(--primary-color-2);
   font-size: 12px;
-  gap: 4px
+  gap: 4px;
 }
 
 .dx-badge[padding="true"] {
@@ -32,7 +32,8 @@
 
 .dx-badge[data-style="outline"] {
   border: 1px solid var(--primary-color-6);
-  background-color: var(--light, var(--primary-color)) var(--dark, var(--primary-color-3));
+  background-color: var(--light, var(--primary-color))
+    var(--dark, var(--primary-color-3));
   color: var(--secondary-color-4);
 }
 

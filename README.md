@@ -6,6 +6,7 @@ Native desktop Markdown/MDX reader and editor. Open a file or folder from the CL
 
 - **UI:** [Dioxus](https://dioxuslabs.com) 0.7 desktop
 - **Language:** Rust 2021
+- **Frontend assets:** TypeScript helpers + Tailwind CSS v4 (Bun build)
 - **Markdown:** pulldown-cmark (CommonMark/GFM) + native MDX components
 - **Highlighting:** syntect
 - **Search:** tantivy
@@ -63,12 +64,27 @@ fmd --help
 ### Building & Installing
 
 ```bash
-# Install binary globally to cargo bin
-cargo install --path .
-
 # Build release binaries (target/release/fmd.exe and fast-md.exe)
 cargo build --release
+
+# Install binary globally to cargo bin
+cargo install --path .
 ```
+
+`cargo build` works without Bun — generated CSS/JS in `src/assets/generated/` are committed.
+
+### Frontend assets
+
+Only needed when editing TypeScript helpers (`src/frontend/`) or Tailwind classes in RSX:
+
+```bash
+bun install
+bun run build          # compile tailwind.css + helpers.js
+bun run watch          # rebuild on change (use alongside cargo run)
+bun run check          # oxlint + oxfmt
+```
+
+After changing frontend sources, run `bun run build` and commit `src/assets/generated/`.
 
 ## License
 

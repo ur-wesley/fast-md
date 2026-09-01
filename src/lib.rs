@@ -16,6 +16,8 @@ use std::sync::OnceLock;
 pub(crate) static CLI_ARGS: OnceLock<CliArgs> = OnceLock::new();
 
 pub const APP_STYLES: &str = concat!(
+    include_str!("assets/generated/tailwind.css"),
+    "@layer components {\n",
     include_str!("assets/css/themes.css"),
     include_str!("assets/css/dx-theme-bridge.css"),
     include_str!("assets/css/chrome.css"),
@@ -37,19 +39,10 @@ pub const APP_STYLES: &str = concat!(
     include_str!("ui/toggle/style.css"),
     include_str!("ui/toggle_group/style.css"),
     include_str!("ui/tooltip/style.css"),
+    "}\n",
 );
 
-const HELPER_JS: &str = concat!(
-    include_str!("assets/js/clipboard.js"),
-    include_str!("assets/js/search.js"),
-    include_str!("assets/js/editor.js"),
-    include_str!("assets/js/history.js"),
-    include_str!("assets/js/wysiwyg.js"),
-    include_str!("assets/js/toolbar_state.js"),
-    include_str!("assets/js/scroll.js"),
-    include_str!("assets/js/contextmenu.js"),
-    include_str!("assets/js/shortcuts.js"),
-);
+const HELPER_JS: &str = include_str!("assets/generated/helpers.js");
 
 #[allow(clippy::single_option_map)]
 pub(crate) fn resolve_cli_path(raw_path: Option<&PathBuf>) -> Option<PathBuf> {
@@ -105,7 +98,8 @@ pub fn run() {
 
     let _ = CLI_ARGS.set(args);
 
-    let config = Config::new()
+    let helper_js = HELPER_JS.replace("</", "<\\/");
+    let mut config = Config::new()
         .with_disable_context_menu(true)
         .with_window(
             WindowBuilder::new()
@@ -117,8 +111,15 @@ pub fn run() {
         )
         .with_background_color((0, 0, 0, 0))
         .with_custom_head(format!(
-            "<script src=\"https://cdn.tailwindcss.com\"></script><style>{APP_STYLES}</style><script>{HELPER_JS}</script>"
+            "<style>{APP_STYLES}</style><script>{helper_js}</script>"
         ));
+
+    #[cfg(windows)]
+    {
+        if let Ok(local) = env::var("LOCALAPPDATA") {
+            config = config.with_data_directory(PathBuf::from(local).join("fast-md"));
+        }
+    }
 
     dioxus::LaunchBuilder::desktop()
         .with_cfg(config)

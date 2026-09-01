@@ -1,122 +1,127 @@
 /* ================= Settings Modal & Animations ================= */
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scaleUp {
-    from {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.96);
-    }
-    to {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .animate-fade-in {
-    animation: fadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-scale-up {
-    animation: scaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: scaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .settings-page {
-    position: relative;
+  position: relative;
 }
 
 .settings-page-header {
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .settings-page-footer {
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .settings-tab-btn:hover {
-    background-color: var(--bg-hover);
+  background-color: var(--bg-hover);
 }
 
 .theme-card:hover {
-    background-color: var(--bg-hover);
-    transform: translateY(-1px);
+  background-color: var(--bg-hover);
+  transform: translateY(-1px);
 }
 
 .theme-card.active-card {
-    background-color: var(--bg-subtle);
-    border-color: var(--accent);
-    box-shadow: 0 0 12px var(--accent-glow);
+  background-color: var(--bg-subtle);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
 }
 
 .accent-color-chip {
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .accent-color-chip:hover {
-    transform: scale(1.1);
+  transform: scale(1.1);
 }
 
 .accent-color-chip.active-chip {
-    transform: scale(1.08);
-    box-shadow: 0 0 0 2px var(--bg-app), 0 0 0 4px var(--accent);
+  transform: scale(1.08);
+  box-shadow:
+    0 0 0 2px var(--bg-app),
+    0 0 0 4px var(--accent);
 }
 
 .settings-tab-trigger {
-    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-    color: var(--text-muted);
-    border-radius: 8px;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--text-muted);
+  border-radius: 8px;
 }
 
 .settings-tab-trigger:hover {
-    color: var(--text-heading);
-    background-color: var(--bg-hover);
+  color: var(--text-heading);
+  background-color: var(--bg-hover);
 }
 
 .settings-tab-trigger[data-state="active"] {
-    color: var(--text-heading);
-    background-color: var(--bg-surface);
-    font-weight: 600;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), inset 0 0 0 1px var(--border-color);
+  color: var(--text-heading);
+  background-color: var(--bg-surface);
+  font-weight: 600;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 1px var(--border-color);
 }
 
 .settings-search-input:focus-within {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-glow);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .settings-option-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-    padding: 0.875rem;
-    background-color: var(--bg-app);
-    border: 1px solid var(--border-color);
-    border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.875rem;
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
 }
 
 .settings-option-row > :first-child {
-    min-width: 0;
-    flex: 1 1 auto;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .settings-option-row > :last-child:not(:only-child) {
-    flex-shrink: 0;
+  flex-shrink: 0;
 }
 
 .settings-section .dx-toggle-item {
-    min-width: 0;
-    padding: 4px 8px;
-    font-size: 12px;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 12px;
 }
-

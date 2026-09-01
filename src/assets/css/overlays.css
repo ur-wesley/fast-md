@@ -1,48 +1,56 @@
 /* ================= Floating Search Overlay ================= */
 
 .floating-search-bar {
-    position: absolute;
-    top: 50px;
-    right: 24px;
-    display: flex;
-    align-items: center;
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-menu);
-    border-radius: 8px;
-    padding: 6px 10px;
-    gap: 8px;
-    z-index: 90;
-    animation: fadeIn 0.15s ease-out;
+  position: absolute;
+  top: 50px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-menu);
+  border-radius: 8px;
+  padding: 6px 10px;
+  gap: 8px;
+  z-index: 90;
+  animation: fadeIn 0.15s ease-out;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .search-text-input {
-    background: transparent;
-    border: none;
-    color: var(--text-main);
-    font-size: 12px;
-    outline: none;
-    width: 200px;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 12px;
+  outline: none;
+  width: 200px;
 }
 
-.search-action-btn, .search-close-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 12px;
-    padding: 2px 4px;
-    border-radius: 4px;
+.search-action-btn,
+.search-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
 }
 
-.search-action-btn:hover, .search-close-btn:hover {
-    background-color: var(--bg-hover);
-    color: var(--text-heading);
+.search-action-btn:hover,
+.search-close-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-heading);
 }
 
 /* ================= Find in Files Overlay ================= */
@@ -61,17 +69,30 @@
   z-index: 1100;
   display: flex;
   width: min(40rem, calc(100vw - 2rem));
-  max-height: min(28rem, calc(100vh - 4rem));
+  max-height: min(32rem, calc(100vh - 4rem));
   box-sizing: border-box;
   flex-direction: column;
   padding: 0;
   border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--bg-surface);
   box-shadow: var(--shadow-menu);
   color: var(--text-main);
   transform: translateX(-50%);
   text-align: left;
+  animation: findInFilesFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes findInFilesFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .find-in-files-header {
@@ -79,7 +100,6 @@
   align-items: center;
   gap: 8px;
   padding: 12px 14px 8px;
-  border-bottom: 1px solid var(--border-color);
 }
 
 .find-in-files-title {
@@ -90,11 +110,49 @@
 }
 
 .find-in-files-input-row {
-  padding: 10px 14px;
+  padding: 0;
 }
 
-.find-in-files-input {
+.find-in-files-input-wrap {
+  display: flex;
+  align-items: center;
   width: 100%;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  background: transparent;
+  transition: box-shadow 0.15s;
+}
+
+.find-in-files-input-wrap:focus-within {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.find-in-files-input-wrap .find-in-files-input {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-heading);
+  font-size: 12px;
+  outline: none;
+}
+
+.find-in-files-input-wrap .find-in-files-input::placeholder {
+  color: var(--text-muted);
+}
+
+.find-in-files-input-wrap .find-in-files-input:hover:not(:disabled),
+.find-in-files-input-wrap .find-in-files-input:focus-visible {
+  background: transparent;
+  color: var(--text-heading);
 }
 
 .find-in-files-results {
@@ -148,9 +206,13 @@
   text-align: left;
 }
 
-.find-in-files-result:hover,
-.find-in-files-result.is-selected {
+.find-in-files-result:hover {
   background: var(--bg-hover);
+}
+
+.find-in-files-result.is-selected {
+  background: color-mix(in oklab, var(--accent) 15%, var(--bg-hover));
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .find-in-files-result-body {
@@ -161,8 +223,17 @@
   gap: 2px;
 }
 
-.find-in-files-result-path {
+.find-in-files-result-name {
   color: var(--text-heading);
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.find-in-files-result-dir {
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 11px;
   overflow: hidden;
@@ -179,101 +250,296 @@
   white-space: nowrap;
 }
 
+.find-in-files-result-mark {
+  color: var(--accent);
+  background: var(--accent-glow);
+  border-radius: 2px;
+}
+
+/* ================= Quick Open Overlay ================= */
+
+.quick-open-backdrop {
+  position: fixed;
+  z-index: 1099;
+  background: rgb(0 0 0 / 35%);
+  inset: 0;
+}
+
+.quick-open-dialog {
+  position: fixed;
+  top: 12%;
+  left: 50%;
+  z-index: 1100;
+  display: flex;
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: min(32rem, calc(100vh - 4rem));
+  box-sizing: border-box;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-menu);
+  color: var(--text-main);
+  transform: translateX(-50%);
+  text-align: left;
+  animation: quickOpenFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes quickOpenFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.quick-open-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 8px;
+}
+
+.quick-open-title {
+  flex: 1;
+  color: var(--text-heading);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.quick-open-input-row {
+  padding: 0;
+}
+
+.quick-open-input-wrap {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  background: transparent;
+  transition: box-shadow 0.15s;
+}
+
+.quick-open-input-wrap:focus-within {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.quick-open-input-wrap .quick-open-input {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-heading);
+  font-size: 12px;
+  outline: none;
+}
+
+.quick-open-input-wrap .quick-open-input::placeholder {
+  color: var(--text-muted);
+}
+
+.quick-open-input-wrap .quick-open-input:hover:not(:disabled),
+.quick-open-input-wrap .quick-open-input:focus-visible {
+  background: transparent;
+  color: var(--text-heading);
+}
+
+.quick-open-results {
+  display: flex;
+  overflow-y: auto;
+  min-height: 8rem;
+  max-height: 18rem;
+  flex-direction: column;
+  padding: 0 8px 10px;
+  gap: 2px;
+}
+
+.quick-open-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 12px;
+  gap: 4px;
+  text-align: center;
+}
+
+.quick-open-empty-title {
+  color: var(--text-heading);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quick-open-empty-desc {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.quick-open-result {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  gap: 8px;
+  text-align: left;
+}
+
+.quick-open-result:hover {
+  background: var(--bg-hover);
+}
+
+.quick-open-result.is-selected {
+  background: color-mix(in oklab, var(--accent) 15%, var(--bg-hover));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.quick-open-result-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quick-open-result-name {
+  color: var(--text-heading);
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-open-result-dir {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-open-result-mark {
+  color: var(--accent);
+  background: var(--accent-glow);
+  border-radius: 2px;
+  font-weight: 700;
+}
+
 /* ================= Floating Zen Mode Exit Button ================= */
 
 .floating-zen-exit-btn {
-    position: absolute;
-    bottom: 20px;
-    right: 24px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    color: var(--text-main);
-    padding: 6px 14px;
-    border-radius: 20px;
-    box-shadow: var(--shadow-menu);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    z-index: 100;
-    opacity: 0.85;
-    transition: all var(--transition-fast);
+  position: absolute;
+  bottom: 20px;
+  right: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 6px 14px;
+  border-radius: 20px;
+  box-shadow: var(--shadow-menu);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  z-index: 100;
+  opacity: 0.85;
+  transition: all var(--transition-fast);
 }
 
 .floating-zen-exit-btn:hover {
-    opacity: 1;
-    background-color: var(--accent);
-    color: #ffffff;
-    border-color: var(--accent);
-    transform: translateY(-1px);
+  opacity: 1;
+  background-color: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  transform: translateY(-1px);
 }
 
 /* ================= Status Bar ================= */
 
 .app-status-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 26px;
-    min-height: 26px;
-    background-color: var(--bg-surface);
-    border-top: 1px solid var(--border-color);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    padding: 0 12px;
-    font-size: 11px;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 26px;
+  min-height: 26px;
+  background-color: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 0 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
-.status-left-group, .status-right-group {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.status-left-group,
+.status-right-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .status-title {
-    font-weight: 600;
-    color: var(--text-heading);
-    max-width: 250px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--text-heading);
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status-path {
-    max-width: 320px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    opacity: 0.75;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.75;
 }
 
 .status-badge {
-    background-color: var(--bg-subtle);
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-size: 10px;
+  background-color: var(--bg-subtle);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
 }
 
 /* ================= Custom Scrollbars ================= */
 
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: var(--bg-hover);
-    border-radius: 4px;
+  background-color: var(--bg-hover);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--text-muted);
+  background-color: var(--text-muted);
 }

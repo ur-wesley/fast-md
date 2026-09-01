@@ -42,7 +42,17 @@ pub fn total_list_height(item_count: usize, row_height: u32) -> u32 {
     u32::try_from(item_count.saturating_mul(row_height as usize)).unwrap_or(u32::MAX)
 }
 
+/// How far the list has been scrolled past the ancestor viewport top.
+///
+/// Uses bounding rects (scroll is already baked in). Negative (list still below
+/// the viewport) clamps to 0.
+#[must_use]
+pub fn relative_scroll(parent_rect_top: f64, list_rect_top: f64) -> f64 {
+    (parent_rect_top - list_rect_top).max(0.0)
+}
+
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -83,5 +93,20 @@ mod tests {
     #[test]
     fn total_list_height_multiplies() {
         assert_eq!(total_list_height(10, 28), 280);
+    }
+
+    #[test]
+    fn relative_scroll_clamps_when_list_below_viewport() {
+        assert_eq!(relative_scroll(100.0, 200.0), 0.0);
+    }
+
+    #[test]
+    fn relative_scroll_zero_when_aligned() {
+        assert_eq!(relative_scroll(80.0, 80.0), 0.0);
+    }
+
+    #[test]
+    fn relative_scroll_is_distance_scrolled_past() {
+        assert_eq!(relative_scroll(100.0, 40.0), 60.0);
     }
 }

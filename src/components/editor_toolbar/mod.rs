@@ -28,20 +28,21 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
     let is_wysiwyg = props.mode == DocumentMode::Wysiwyg;
     let format = active_tab.map_or(crate::types::DocumentFormat::Markdown, |t| t.parsed.format);
     let is_config = format.is_config();
+    let is_markdown = format.is_markdown();
     let validation_error = active_tab.and_then(|t| t.parsed.validation_error.clone());
 
     rsx! {
         div {
-            class: "editor-toolbar flex items-center justify-between px-3 py-1.5 bg-[var(--bg-surface)] border-b border-[var(--border-color)] overflow-visible select-none gap-1 shrink-0 z-30",
+            class: "editor-toolbar flex items-stretch justify-between px-0 py-0 bg-[var(--bg-surface)] border-b border-[var(--border-color)] overflow-visible select-none shrink-0 z-30",
 
             div {
-                class: "flex items-center gap-1 flex-wrap min-w-0",
+                class: "flex items-stretch h-full min-w-0",
 
                 if is_config {
                     div {
-                        class: "inline-flex items-center bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-1",
+                        class: "inline-flex items-stretch h-full",
                         span {
-                            class: "px-2 py-0.5 text-[11px] font-mono font-semibold text-[var(--accent)] bg-[var(--bg-app)] rounded border border-[var(--border-color)]",
+                            class: "px-2 text-[10.5px] uppercase font-mono font-bold tracking-wider text-[var(--text-muted)] flex items-center h-full shrink-0",
                             "{format.label()}"
                         }
                         if format == crate::types::DocumentFormat::Json {
@@ -52,6 +53,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                                 Button {
                                     variant: ButtonVariant::Ghost,
                                     size: ButtonSize::Sm,
+                                    class: "toolbar-action-btn-flat",
                                     onclick: move |_| {
                                         dioxus::prelude::document::eval("window.insertSourceSnippet && window.insertSourceSnippet('{\\n  \"key\": \"value\"\\n}');");
                                     },
@@ -65,6 +67,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                                 Button {
                                     variant: ButtonVariant::Ghost,
                                     size: ButtonSize::Sm,
+                                    class: "toolbar-action-btn-flat",
                                     onclick: move |_| {
                                         dioxus::prelude::document::eval("window.insertSourceSnippet && window.insertSourceSnippet('[\\n  \"value\"\\n]');");
                                     },
@@ -78,6 +81,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                                 Button {
                                     variant: ButtonVariant::Ghost,
                                     size: ButtonSize::Sm,
+                                    class: "toolbar-action-btn-flat",
                                     onclick: move |_| {
                                         dioxus::prelude::document::eval("window.insertSourceSnippet && window.insertSourceSnippet('\"key\": \"value\",\\n');");
                                     },
@@ -93,6 +97,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                                 Button {
                                     variant: ButtonVariant::Ghost,
                                     size: ButtonSize::Sm,
+                                    class: "toolbar-action-btn-flat",
                                     onclick: move |_| {
                                         dioxus::prelude::document::eval("window.insertSourceSnippet && window.insertSourceSnippet('\\n[section]\\nkey = \"value\"\\n');");
                                     },
@@ -106,6 +111,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                                 Button {
                                     variant: ButtonVariant::Ghost,
                                     size: ButtonSize::Sm,
+                                    class: "toolbar-action-btn-flat",
                                     onclick: move |_| {
                                         dioxus::prelude::document::eval("window.insertSourceSnippet && window.insertSourceSnippet('\\n[[array_table]]\\nname = \"item\"\\n');");
                                     },
@@ -121,6 +127,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                                 Button {
                                     variant: ButtonVariant::Ghost,
                                     size: ButtonSize::Sm,
+                                    class: "toolbar-action-btn-flat",
                                     onclick: move |_| {
                                         dioxus::prelude::document::eval("window.insertSourceSnippet && window.insertSourceSnippet('key: value\\n');");
                                     },
@@ -134,6 +141,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                                 Button {
                                     variant: ButtonVariant::Ghost,
                                     size: ButtonSize::Sm,
+                                    class: "toolbar-action-btn-flat",
                                     onclick: move |_| {
                                         dioxus::prelude::document::eval("window.insertSourceSnippet && window.insertSourceSnippet('- item\\n');");
                                     },
@@ -144,23 +152,23 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                     }
 
                     div {
-                        class: "inline-flex items-center px-2 py-1 rounded text-xs gap-1.5 font-medium select-none",
+                        class: "inline-flex items-stretch h-full px-2 text-xs font-medium select-none",
                         if let Some(ref err) = validation_error {
                             span {
-                                class: "text-amber-500 flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30",
+                                class: "text-amber-500 flex items-center gap-1 px-2",
                                 title: "{err}",
                                 "⚠️ {t.editor.invalid_syntax}"
                             }
                         } else {
                             span {
-                                class: "text-emerald-500 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30",
+                                class: "text-emerald-500 flex items-center gap-1 px-2",
                                 "✓ {t.editor.valid_syntax}"
                             }
                         }
                     }
                 }
 
-                if !is_config {
+                if is_markdown {
                     if is_wysiwyg {
                         WysiwygFormattingTools { t }
                     } else {
@@ -170,7 +178,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
             }
 
             div {
-                class: "flex items-center gap-1.5 shrink-0",
+                class: "flex items-stretch h-full shrink-0",
 
                 Hint {
                     text: t.editor.format_document,
@@ -179,6 +187,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                     Button {
                         variant: ButtonVariant::Ghost,
                         size: ButtonSize::Sm,
+                        class: "toolbar-action-btn-flat",
                         onclick: move |_| {
                             store.write().format_active_tab();
                         },
@@ -187,8 +196,10 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                     }
                 }
 
+                div { class: "toolbar-inner-sep" }
+
                 div {
-                    class: "inline-flex items-center bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-lg p-0.5 gap-0.5",
+                    class: "inline-flex items-stretch h-full",
                     Hint {
                         text: t.editor.undo,
                         side: ContentSide::Bottom,
@@ -196,6 +207,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                         Button {
                             variant: ButtonVariant::Ghost,
                             size: ButtonSize::IconSm,
+                            class: "toolbar-action-btn-flat",
                             onclick: move |_| {
                                 dioxus::prelude::document::eval("window.editorUndo && window.editorUndo();");
                             },
@@ -209,6 +221,7 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                         Button {
                             variant: ButtonVariant::Ghost,
                             size: ButtonSize::IconSm,
+                            class: "toolbar-action-btn-flat",
                             onclick: move |_| {
                                 dioxus::prelude::document::eval("window.editorRedo && window.editorRedo();");
                             },
@@ -217,13 +230,16 @@ pub fn EditorToolbar(props: EditorToolbarProps) -> Element {
                     }
                 }
 
+                div { class: "toolbar-inner-sep" }
+
                 Hint {
                     text: t.toolbar.save_file,
                     side: ContentSide::Bottom,
                     align: ContentAlign::End,
                     Button {
-                        variant: if is_dirty { ButtonVariant::Primary } else { ButtonVariant::Ghost },
+                        variant: ButtonVariant::Ghost,
                         size: ButtonSize::Sm,
+                        class: if is_dirty { "toolbar-action-btn-flat toolbar-dirty-flat" } else { "toolbar-action-btn-flat" },
                         onclick: move |_| {
                         spawn(async move {
                             let s = store();
