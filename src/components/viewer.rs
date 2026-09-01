@@ -1,6 +1,7 @@
 use crate::components::context_menu::PreviewContextMenu;
 use crate::components::frontmatter_card::FrontmatterCard;
-use crate::types::{Language, ParsedDocument};
+use crate::components::line_preview::ConfigPreviewPane;
+use crate::types::{Language, ParseStatus, ParsedDocument};
 use dioxus::prelude::*;
 
 #[derive(Props, Clone, PartialEq, Eq)]
@@ -8,6 +9,7 @@ pub struct ViewerProps {
     #[props(default)]
     pub tab_id: usize,
     pub document: ParsedDocument,
+    pub parse_status: ParseStatus,
     pub is_full_width: bool,
     pub zoom_level: u32,
     pub sticky_headers: bool,
@@ -32,6 +34,8 @@ pub fn Viewer(props: ViewerProps) -> Element {
         "app-main-viewer flex-1 h-full overflow-y-auto overflow-x-hidden scroll-smooth pt-0 pb-8 px-6 bg-[var(--reader-glass-bg)] transition-all duration-150"
     };
 
+    let mut preview_window_tick = use_signal(|| 0u32);
+
     use_effect(move || {
         let _ = tab_id;
         dioxus::prelude::document::eval(&format!(
@@ -43,7 +47,6 @@ pub fn Viewer(props: ViewerProps) -> Element {
         div {
             class: "viewer-wrapper flex-1 h-full flex flex-col relative overflow-hidden",
             "data-tab-id": "{tab_id}",
-            // Sticky top light animated reading progress bar spanning full width of content window
             div {
                 class: "viewer-progress-container w-full h-[3px] bg-[var(--bg-subtle)] overflow-hidden shrink-0 z-40 pointer-events-none relative",
                 div {
@@ -60,11 +63,13 @@ pub fn Viewer(props: ViewerProps) -> Element {
                 "data-tab-id": "{tab_id}",
                 style: "{zoom_style}",
                 onmounted: move |_| {
+                    preview_window_tick.set(preview_window_tick().saturating_add(1));
                     dioxus::prelude::document::eval(&format!(
                         "window.bindViewerScroll && window.bindViewerScroll({tab_id:?});"
                     ));
                 },
                 onscroll: move |_| {
+                    preview_window_tick.set(preview_window_tick().saturating_add(1));
                     dioxus::prelude::document::eval("window.onViewerScroll && window.onViewerScroll();");
                 },
                 div {
@@ -77,9 +82,18 @@ pub fn Viewer(props: ViewerProps) -> Element {
                     }
                     PreviewContextMenu {
                         t: t,
-                        article {
-                            class: "markdown-body leading-relaxed",
-                            dangerous_inner_html: "{doc.html_content}",
+                        if doc.uses_line_preview() {
+                            ConfigPreviewPane {
+                                tab_id: tab_id,
+                                document: doc.clone(),
+                                parse_status: props.parse_status,
+                                window_tick: Some(preview_window_tick),
+                            }
+                        } else {
+                            article {
+                                class: "markdown-body leading-relaxed",
+                                dangerous_inner_html: "{doc.html_content}",
+                            }
                         }
                     }
                 }

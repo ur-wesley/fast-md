@@ -105,12 +105,36 @@ impl DocumentFormat {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ParsedDocument {
     pub html_content: String,
+    pub preview_lines: Vec<String>,
     pub toc: Vec<TocItem>,
     pub metadata: Option<DocMetadata>,
     pub word_count: usize,
     pub reading_time_minutes: usize,
     pub format: DocumentFormat,
     pub validation_error: Option<String>,
+}
+
+impl ParsedDocument {
+    #[must_use]
+    pub fn uses_line_preview(&self) -> bool {
+        !self.preview_lines.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LoadingKind {
+    #[default]
+    Content,
+    Highlight,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ParseStatus {
+    #[default]
+    Ready,
+    Loading {
+        kind: LoadingKind,
+    },
 }
 
 /// Open document tab state.
@@ -123,4 +147,6 @@ pub struct TabItem {
     pub parsed: ParsedDocument,
     pub is_dirty: bool,
     pub html_revision: u64,
+    pub parse_gen: u64,
+    pub parse_status: ParseStatus,
 }

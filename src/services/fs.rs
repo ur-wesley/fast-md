@@ -114,7 +114,7 @@ pub fn scan_markdown_tree(dir: &Path) -> Result<Vec<FileTreeEntry>> {
 /// Prompt native asynchronous file picker dialog for opening documents or configs.
 pub async fn pick_file_async() -> Option<PathBuf> {
     let handle = rfd::AsyncFileDialog::new()
-        .add_filter("Markdown & MDX", &["md", "mdx", "markdown", "txt"])
+        .add_filter("Markdown & MDX", &["md", "mdx", "markdown"])
         .add_filter("Config Files (JSON, TOML, YAML)", &["json", "jsonc", "toml", "yaml", "yml", "ini", "ron", "xml"])
         .add_filter("All Supported Files", &["md", "mdx", "markdown", "txt", "json", "toml", "yaml", "yml", "ini", "ron", "xml", "rs", "js", "ts", "html", "css"])
         .add_filter("All Files", &["*"])

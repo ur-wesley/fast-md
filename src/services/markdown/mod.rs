@@ -3,9 +3,9 @@ mod frontmatter;
 mod highlight;
 mod mdx;
 
-pub use config::{extract_config_toc, parse_config_document, validate_document};
+pub use config::{extract_config_toc, parse_config_document, parse_plain_text, validate_document};
 pub use frontmatter::extract_frontmatter;
-pub use highlight::parse_markdown_document;
+pub use highlight::{highlighted_config_lines_for_string, parse_markdown_document};
 pub use mdx::preprocess_mdx;
 
 use crate::types::{DocumentFormat, ParsedDocument};
@@ -17,6 +17,8 @@ pub fn parse_document(raw: &str, format: DocumentFormat) -> ParsedDocument {
         let mut doc = parse_markdown_document(raw);
         doc.format = format;
         doc
+    } else if format == DocumentFormat::PlainText {
+        parse_plain_text(raw)
     } else {
         parse_config_document(raw, format)
     }
@@ -97,5 +99,23 @@ mod tests {
         let json_raw = r#""hello { world }""#;
         let doc = parse_document(json_raw, DocumentFormat::Json);
         assert!(!doc.html_content.contains("class=\"rb"));
+    }
+
+    #[test]
+    fn test_parse_plain_text_document() {
+        let raw = "# Hello\n**bold**\n<script>alert(1)</script>";
+        let doc = parse_document(raw, DocumentFormat::PlainText);
+        assert_eq!(doc.format, DocumentFormat::PlainText);
+        assert!(doc.validation_error.is_none());
+        assert!(doc.toc.is_empty());
+        assert!(doc.html_content.contains("plain-text-doc"));
+        assert!(!doc.html_content.contains("config-doc-container"));
+        assert!(!doc.html_content.contains("<h1>"));
+        assert!(!doc.html_content.contains("<strong>"));
+        assert!(!doc.html_content.contains("<script>"));
+        assert!(doc.html_content.contains("&lt;script&gt;"));
+        assert!(doc.html_content.contains("# Hello"));
+        assert!(doc.html_content.contains("**bold**"));
+        assert_eq!(doc.preview_lines.len(), 3);
     }
 }

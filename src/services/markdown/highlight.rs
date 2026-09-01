@@ -17,7 +17,11 @@ static SYNTAX_SET: OnceLock<SyntaxSet> = OnceLock::new();
 static THEME_SET: OnceLock<ThemeSet> = OnceLock::new();
 
 pub(crate) fn get_syntax_set() -> &'static SyntaxSet {
-    SYNTAX_SET.get_or_init(SyntaxSet::load_defaults_newlines)
+    SYNTAX_SET.get_or_init(load_syntax_set)
+}
+
+fn load_syntax_set() -> SyntaxSet {
+    two_face::syntax::extra_newlines()
 }
 
 pub(crate) fn get_theme_set() -> &'static ThemeSet {
@@ -96,11 +100,9 @@ fn append_config_token_html(
                 plain.clear();
             }
             let index = rainbow_bracket_index(c, bracket_depth);
-            write!(
-                output,
-                "<span class=\"rb rb-{index}\">{}</span>",
-                html_escape(&c.to_string())
-            )?;
+            write!(output, "<span class=\"rb rb-{index}\">")?;
+            html_escape_char(c, output);
+            output.push_str("</span>");
         } else {
             plain.push(c);
         }
@@ -172,18 +174,59 @@ pub fn highlighted_config_html_for_string(
     Ok(output)
 }
 
+pub(crate) fn html_escape_char(c: char, out: &mut String) {
+    match c {
+        '&' => out.push_str("&amp;"),
+        '<' => out.push_str("&lt;"),
+        '>' => out.push_str("&gt;"),
+        '"' => out.push_str("&quot;"),
+        '\'' => out.push_str("&#39;"),
+        other => out.push(other),
+    }
+}
+
 pub(crate) fn html_escape(input: &str) -> String {
-    input
-        .chars()
-        .map(|c| match c {
-            '&' => "&amp;".to_string(),
-            '<' => "&lt;".to_string(),
-            '>' => "&gt;".to_string(),
-            '"' => "&quot;".to_string(),
-            '\'' => "&#39;".to_string(),
-            other => other.to_string(),
-        })
-        .collect()
+    let mut out = String::with_capacity(input.len());
+    for c in input.chars() {
+        html_escape_char(c, &mut out);
+    }
+    out
+}
+
+/// Syntax-highlight config source line-by-line for virtual preview panes.
+pub fn highlighted_config_lines_for_string(
+    source: &str,
+    syntax_set: &SyntaxSet,
+    syntax: &SyntaxReference,
+    theme: &Theme,
+) -> Result<Vec<String>, Error> {
+    let highlighter = Highlighter::new(theme);
+    let mut parse_state = ParseState::new(syntax);
+    let mut scope_stack = ScopeStack::new();
+    let mut bracket_depth = 0usize;
+    let bg = IncludeBackground::No;
+
+    let mut lines = Vec::new();
+    for line in LinesWithEndings::from(source) {
+        let mut output = String::new();
+        append_config_line_html(
+            line,
+            &mut parse_state,
+            &highlighter,
+            &mut scope_stack,
+            &mut bracket_depth,
+            bg,
+            &mut output,
+            syntax_set,
+        )?;
+        lines.push(output);
+    }
+
+    if source.is_empty() {
+        lines.push(String::new());
+    }
+
+    Ok(lines)
 }
 
 fn is_mdx_wrapper_close(html: &str) -> bool {
@@ -424,6 +467,7 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
 
     ParsedDocument {
         html_content: html_output,
+        preview_lines: Vec::new(),
         toc,
         metadata,
         word_count: words,
@@ -437,6 +481,13 @@ pub fn parse_markdown_document(raw: &str) -> ParsedDocument {
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_html_escape() {
+        assert_eq!(html_escape("a&b<c>\"d'"), "a&amp;b&lt;c&gt;&quot;d&#39;");
+        assert_eq!(html_escape(""), "");
+        assert_eq!(html_escape("plain"), "plain");
+    }
 
     #[test]
     fn test_slugify() {
@@ -537,5 +588,50 @@ mod tests {
         );
         assert!(!doc.html_content.contains("**Callout**"));
         assert!(!doc.html_content.contains("### Interactive Documentation"));
+    }
+
+    fn unique_span_colors(html: &str) -> std::collections::BTreeSet<String> {
+        html.split("style=\"color:")
+            .skip(1)
+            .filter_map(|rest| {
+                rest.split(|c: char| c == ';' || c == '"' || c.is_whitespace())
+                    .next()
+                    .filter(|token| token.starts_with('#'))
+                    .map(|token| token.to_ascii_lowercase())
+            })
+            .collect()
+    }
+
+    #[test]
+    fn ts_fence_highlights_tokens_with_multiple_colors() {
+        let raw = "```ts\nimport { x } from \"mod\";\nconst n = 20; // hi\n```";
+        let doc = parse_markdown_document(raw);
+        let colors = unique_span_colors(&doc.html_content);
+        assert!(
+            colors.len() >= 3,
+            "ts fence should color keywords/strings/numbers distinctly, got {colors:?} html={}",
+            doc.html_content
+        );
+    }
+
+    #[test]
+    fn rust_fence_still_highlights() {
+        let raw = "```rust\nfn main() { let x = 1; }\n```";
+        let doc = parse_markdown_document(raw);
+        let colors = unique_span_colors(&doc.html_content);
+        assert!(
+            colors.len() >= 3,
+            "rust fence should keep token colors, got {colors:?} html={}",
+            doc.html_content
+        );
+    }
+
+    #[test]
+    fn toml_syntax_is_not_plain_text() {
+        let ss = get_syntax_set();
+        let syntax = ss
+            .find_syntax_by_token("toml")
+            .expect("toml syntax loaded");
+        assert_ne!(syntax.name, ss.find_syntax_plain_text().name);
     }
 }
