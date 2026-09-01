@@ -1,7 +1,7 @@
 pre-commit:
   commands:
     fmt:
-      glob: "*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,md}"
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,md,toml,css}"
       run: bun x oxfmt --write {staged_files}
       stage_fixed: true
     lint-fix:

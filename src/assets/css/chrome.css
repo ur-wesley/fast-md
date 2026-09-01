@@ -981,7 +981,9 @@ body {
   cursor: pointer;
   white-space: nowrap;
   max-width: 200px;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
   box-sizing: border-box;
 }
 

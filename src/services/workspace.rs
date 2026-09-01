@@ -1,4 +1,4 @@
-use crate::types::{WorkspaceSnapshot, WorkspacesFile};
+use crate::types::WorkspacesFile;
 use eyre::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -86,6 +86,7 @@ fn strip_unc_prefix(path: PathBuf) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::WorkspaceSnapshot;
     use std::env;
 
     #[test]
