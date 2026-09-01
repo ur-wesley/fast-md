@@ -1,6 +1,15 @@
 # Fast-MD
 
-A lightweight, native desktop Markdown and MDX viewer built with Dioxus 0.6 and Rust.
+Native desktop Markdown/MDX reader and editor. Open a file or folder from the CLI (`fmd`), live-reload on save, edit in source or WYSIWYG, search the workspace, export HTML. Also opens JSON, TOML, YAML, INI, RON, and XML.
+
+## Stack
+
+- **UI:** [Dioxus](https://dioxuslabs.com) 0.7 desktop
+- **Language:** Rust 2021
+- **Markdown:** pulldown-cmark (CommonMark/GFM) + native MDX components
+- **Highlighting:** syntect
+- **Search:** tantivy
+- **Watch / dialogs / CLI:** notify, rfd, clap
 
 ## Features
 
