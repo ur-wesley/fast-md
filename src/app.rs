@@ -1,12 +1,12 @@
 use crate::cli::CliArgs;
 use crate::components::{
-    Editor, FindInFiles, SettingsModal, Sidebar, StatusBar, TabBar, TitleBar, Toolbar, Viewer,
+    Editor, FindInFiles, QuickOpen, SettingsModal, Sidebar, StatusBar, TabBar, TitleBar, Toolbar, Viewer,
     WorkspaceSplit, ZenExitButton,
 };
 use crate::services::fs::read_document_file;
 use crate::services::updater;
 use crate::services::watcher::LiveFileWatcher;
-use crate::state::{kick_pending_tree_scan, AppStore};
+use crate::state::{kick_pending_document_loads, kick_pending_reparses, kick_pending_tree_scan, AppStore};
 use crate::types::{AppTheme, DocumentMode, Language, UpdateStatus};
 use crate::{resolve_cli_path, CLI_ARGS};
 use dioxus::prelude::*;
@@ -77,6 +77,8 @@ pub fn App() -> Element {
 
     use_effect(move || {
         kick_pending_tree_scan(store);
+        kick_pending_document_loads(store);
+        kick_pending_reparses(store);
     });
 
     // Dynamically apply OS native glass / acrylic / mica effect based on active theme
@@ -257,6 +259,12 @@ pub fn App() -> Element {
                 }
             }
 
+            if store_read.show_quick_open {
+                QuickOpen {
+                    store: store,
+                }
+            }
+
             // Custom Window Title Bar (hidden in Zen mode)
             if !is_zen {
                 TitleBar {
@@ -300,6 +308,7 @@ pub fn App() -> Element {
                                     Viewer {
                                         tab_id: active_tab.id,
                                         document: active_tab.parsed.clone(),
+                                        parse_status: active_tab.parse_status,
                                         is_full_width: is_full_width,
                                         zoom_level: zoom_level,
                                         sticky_headers: store_read.sticky_headers,
@@ -313,6 +322,7 @@ pub fn App() -> Element {
                                         document: active_tab.parsed.clone(),
                                         raw_content: active_tab.content.clone(),
                                         html_revision: active_tab.html_revision,
+                                        parse_status: active_tab.parse_status,
                                         is_full_width: is_full_width,
                                         zoom_level: zoom_level,
                                         sticky_headers: store_read.sticky_headers,

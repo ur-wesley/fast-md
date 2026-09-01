@@ -1,8 +1,8 @@
 use super::{
     CommonTranslations, ContextMenuTranslations, EditorTranslations, FindInFilesTranslations,
-    FrontmatterTranslations, SearchBarTranslations, SettingsTranslations, ShortcutsTranslations,
-    SidebarTranslations, StatusBarTranslations, TabBarTranslations, TitleBarTranslations,
-    ToolbarTranslations, Translations, ZenTranslations,
+    FrontmatterTranslations, QuickOpenTranslations, SearchBarTranslations, SettingsTranslations,
+    ShortcutsTranslations, SidebarTranslations, StatusBarTranslations, TabBarTranslations,
+    TitleBarTranslations, ToolbarTranslations, Translations, ZenTranslations,
 };
 
 pub const EN: Translations = Translations {
@@ -137,6 +137,7 @@ pub const EN: Translations = Translations {
     tab_bar: TabBarTranslations {
         new_file_or_tab: "New Tab (Ctrl+T)",
         close_tab: "Close Tab",
+        keep_open: "Keep Open",
         unsaved_changes: "Unsaved changes",
         no_open_tabs: "No open document",
         no_open_tabs_desc: "Open a new tab or choose a file to start reading and editing.",
@@ -160,9 +161,17 @@ pub const EN: Translations = Translations {
         placeholder: "Search workspace files...",
         indexing: "Indexing workspace files...",
         searching: "Searching...",
-        type_to_search: "Type to search open folder and tabs",
+        type_to_search: "Type to search the workspace",
         no_results: "No matches found",
         no_results_desc: "Try different keywords or open a folder first.",
+        close: "Close",
+    },
+    quick_open: QuickOpenTranslations {
+        title: "Quick Open",
+        placeholder: "Jump to file...",
+        no_folder: "Open a folder to search workspace files",
+        no_results: "No files found",
+        no_results_desc: "Try a different name or open a folder first.",
         close: "Close",
     },
     settings: SettingsTranslations {
@@ -310,6 +319,8 @@ pub const EN: Translations = Translations {
         action_open_file_desc: "Open a document from disk",
         action_open_folder: "Open Folder",
         action_open_folder_desc: "Open a folder in the file explorer",
+        action_quick_open: "Quick Open",
+        action_quick_open_desc: "Jump to a file in the workspace",
         action_new_tab: "New Tab",
         action_new_tab_desc: "Open a new blank document tab",
         action_close_tab: "Close Tab",

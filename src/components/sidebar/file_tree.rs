@@ -7,7 +7,7 @@ use dioxus_free_icons::icons::ld_icons::{
     LdChevronDown, LdChevronRight, LdFileCode2, LdFileText, LdFolder, LdFolderOpen,
 };
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 pub const FILE_TREE_ROW_HEIGHT: u32 = 28;
@@ -88,6 +88,190 @@ fn flatten_walk(
     }
 }
 
+pub const QUICK_OPEN_LIMIT: usize = 50;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QuickOpenItem {
+    pub path: PathBuf,
+    pub name: String,
+}
+
+pub fn flatten_files(entries: &[FileTreeEntry]) -> Vec<QuickOpenItem> {
+    let mut items = Vec::new();
+    flatten_files_walk(entries, &mut items);
+    items
+}
+
+fn flatten_files_walk(entries: &[FileTreeEntry], items: &mut Vec<QuickOpenItem>) {
+    for entry in entries {
+        if entry.is_dir {
+            flatten_files_walk(&entry.children, items);
+        } else {
+            items.push(QuickOpenItem {
+                path: entry.path.clone(),
+                name: entry.name.clone(),
+            });
+        }
+    }
+}
+
+const FILENAME_BIAS: i32 = 1000;
+const BONUS_CONSECUTIVE: i32 = 8;
+const BONUS_START: i32 = 8;
+const BONUS_WORD: i32 = 6;
+const BONUS_CAMEL: i32 = 6;
+const SCORE_MATCH: i32 = 1;
+
+fn slash_norm(s: &str) -> String {
+    s.replace('\\', "/")
+}
+
+fn is_word_sep(c: char) -> bool {
+    matches!(c, '/' | '_' | '-' | '.' | ' ')
+}
+
+pub(crate) fn fuzzy_match(haystack: &str, needle: &str) -> Option<(i32, Vec<usize>)> {
+    let needle: String = slash_norm(needle.trim()).chars().map(|c| c.to_ascii_lowercase()).collect();
+    if needle.is_empty() {
+        return Some((0, Vec::new()));
+    }
+
+    let hay_norm = slash_norm(haystack);
+    let orig: Vec<char> = hay_norm.chars().collect();
+    let lower: Vec<char> = orig.iter().map(|c| c.to_ascii_lowercase()).collect();
+
+    let mut matches = Vec::new();
+    let mut search_from = 0usize;
+    let mut score = 0i32;
+
+    for nch in needle.chars() {
+        let rel = lower[search_from..].iter().position(|&c| c == nch)?;
+        let idx = search_from + rel;
+        score += SCORE_MATCH;
+        if idx == 0 {
+            score += BONUS_START;
+        } else {
+            if matches.last() == Some(&(idx - 1)) {
+                score += BONUS_CONSECUTIVE;
+            }
+            let prev = orig[idx - 1];
+            if is_word_sep(prev) {
+                score += BONUS_WORD;
+            }
+            if prev.is_ascii_lowercase() && orig[idx].is_ascii_uppercase() {
+                score += BONUS_CAMEL;
+            }
+        }
+        matches.push(idx);
+        search_from = idx + 1;
+    }
+
+    Some((score, matches))
+}
+
+fn quick_open_relative(path: &Path, workspace_root: Option<&Path>) -> String {
+    let raw = if let Some(root) = workspace_root {
+        path.strip_prefix(root)
+            .map_or_else(|_| path.display().to_string(), |rel| rel.display().to_string())
+    } else {
+        path.display().to_string()
+    };
+    slash_norm(&raw)
+}
+
+fn quick_open_score(item: &QuickOpenItem, query: &str, workspace_root: Option<&Path>) -> Option<i32> {
+    let name_score = fuzzy_match(&item.name, query).map(|(s, _)| s);
+    let path_score = fuzzy_match(&quick_open_relative(&item.path, workspace_root), query).map(|(s, _)| s);
+    match (name_score, path_score) {
+        (Some(name), Some(path)) => Some(name.saturating_add(FILENAME_BIAS).max(path)),
+        (Some(name), None) => Some(name.saturating_add(FILENAME_BIAS)),
+        (None, Some(path)) => Some(path),
+        (None, None) => None,
+    }
+}
+
+pub fn rank_quick_open(
+    files: &[QuickOpenItem],
+    recents: &[PathBuf],
+    query: &str,
+    workspace_root: Option<&Path>,
+    limit: usize,
+) -> Vec<QuickOpenItem> {
+    let query = query.trim();
+    if query.is_empty() {
+        let mut result = Vec::new();
+        let mut seen = HashSet::new();
+
+        for recent in recents {
+            if result.len() >= limit {
+                break;
+            }
+            if !seen.insert(recent.clone()) {
+                continue;
+            }
+            if let Some(item) = files.iter().find(|f| f.path == *recent) {
+                result.push(item.clone());
+            } else {
+                let name = recent
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                result.push(QuickOpenItem {
+                    path: recent.clone(),
+                    name,
+                });
+            }
+        }
+
+        for item in files {
+            if result.len() >= limit {
+                break;
+            }
+            if seen.insert(item.path.clone()) {
+                result.push(item.clone());
+            }
+        }
+
+        return result;
+    }
+
+    let files_set: HashSet<&PathBuf> = files.iter().map(|f| &f.path).collect();
+    let mut scored: Vec<(usize, QuickOpenItem, i32)> = Vec::new();
+    let mut order = 0usize;
+
+    for item in files {
+        if let Some(score) = quick_open_score(item, query, workspace_root) {
+            scored.push((order, item.clone(), score));
+        }
+        order += 1;
+    }
+
+    for recent in recents {
+        if files_set.contains(recent) {
+            continue;
+        }
+        let name = recent
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let item = QuickOpenItem {
+            path: recent.clone(),
+            name,
+        };
+        if let Some(score) = quick_open_score(&item, query, workspace_root) {
+            scored.push((order, item, score));
+            order += 1;
+        }
+    }
+
+    scored.sort_by(|a, b| b.2.cmp(&a.2).then(a.0.cmp(&b.0)));
+    scored
+        .into_iter()
+        .take(limit)
+        .map(|(_, item, _)| item)
+        .collect()
+}
+
 #[derive(Props, Clone)]
 pub struct FileTreeRowItemProps {
     pub row: FileTreeRow,
@@ -96,6 +280,7 @@ pub struct FileTreeRowItemProps {
     pub store: Signal<AppStore>,
     pub on_toggle_dir: EventHandler<PathBuf>,
     pub on_select: EventHandler<PathBuf>,
+    pub on_pin_select: EventHandler<PathBuf>,
 }
 
 impl PartialEq for FileTreeRowItemProps {
@@ -147,7 +332,8 @@ pub(super) fn FileTreeRowItem(props: FileTreeRowItemProps) -> Element {
             }
         }
     } else {
-        let path_clone = row.path.clone();
+        let path_click = row.path.clone();
+        let path_dbl = row.path.clone();
         let is_active = props.active_path.as_ref() == Some(&row.path);
         let ext = row
             .path
@@ -185,7 +371,8 @@ pub(super) fn FileTreeRowItem(props: FileTreeRowItemProps) -> Element {
                         "file-tree-file flex items-center justify-between gap-1.5 py-1 px-2 rounded text-xs cursor-pointer text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-heading)] transition-colors duration-150"
                     },
                     style: "padding-left: {file_pad}px;",
-                    onclick: move |_| props.on_select.call(path_clone.clone()),
+                    onclick: move |_| props.on_select.call(path_click.clone()),
+                    ondoubleclick: move |_| props.on_pin_select.call(path_dbl.clone()),
                     div {
                         class: "flex items-center gap-1.5 min-w-0 flex-1",
                         span {
@@ -223,6 +410,15 @@ mod tests {
         FileTreeEntry {
             name: name.to_string(),
             path: PathBuf::from(name),
+            is_dir: false,
+            children: Arc::new(Vec::new()),
+        }
+    }
+
+    fn file_at(name: &str, path: &str) -> FileTreeEntry {
+        FileTreeEntry {
+            name: name.to_string(),
+            path: PathBuf::from(path),
             is_dir: false,
             children: Arc::new(Vec::new()),
         }
@@ -375,5 +571,140 @@ mod tests {
         let rows = flatten_visible(&filtered, &HashSet::new(), true);
         assert_eq!(row_names(&rows), ["notes", "alpha.md"]);
         assert!(rows[0].expanded);
+    }
+
+    #[test]
+    fn flatten_files_skips_dirs_collects_nested() {
+        let tree = vec![dir(
+            "notes",
+            vec![file_at("alpha.md", "notes/alpha.md"), dir("nested", vec![file_at("beta.md", "notes/nested/beta.md")])],
+        )];
+        let items = flatten_files(&tree);
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].name, "alpha.md");
+        assert_eq!(items[1].name, "beta.md");
+    }
+
+    #[test]
+    fn rank_quick_open_empty_query_recents_first() {
+        let files = vec![
+            QuickOpenItem {
+                path: PathBuf::from("/ws/a.md"),
+                name: "a.md".to_string(),
+            },
+            QuickOpenItem {
+                path: PathBuf::from("/ws/b.md"),
+                name: "b.md".to_string(),
+            },
+        ];
+        let recents = vec![PathBuf::from("/ws/b.md"), PathBuf::from("/ws/c.md")];
+        let ranked = rank_quick_open(&files, &recents, "", Some(Path::new("/ws")), 50);
+        assert_eq!(ranked.len(), 3);
+        assert_eq!(ranked[0].name, "b.md");
+        assert_eq!(ranked[1].name, "c.md");
+        assert_eq!(ranked[2].name, "a.md");
+    }
+
+    #[test]
+    fn fuzzy_match_subsequence_hits_and_misses() {
+        assert!(fuzzy_match("file_tree.rs", "ftr").is_some());
+        assert!(fuzzy_match("quick_open.rs", "qo").is_some());
+        assert!(fuzzy_match("file_tree.rs", "xyz").is_none());
+    }
+
+    #[test]
+    fn rank_quick_open_fuzzy_subsequence() {
+        let files = vec![
+            QuickOpenItem {
+                path: PathBuf::from("/ws/file_tree.rs"),
+                name: "file_tree.rs".to_string(),
+            },
+            QuickOpenItem {
+                path: PathBuf::from("/ws/readme.md"),
+                name: "readme.md".to_string(),
+            },
+        ];
+        let ranked = rank_quick_open(&files, &[], "ftr", Some(Path::new("/ws")), 50);
+        assert_eq!(ranked.len(), 1);
+        assert_eq!(ranked[0].name, "file_tree.rs");
+        assert!(rank_quick_open(&files, &[], "xyz", Some(Path::new("/ws")), 50).is_empty());
+    }
+
+    #[test]
+    fn rank_quick_open_starts_with_beats_contains() {
+        let files = vec![
+            QuickOpenItem {
+                path: PathBuf::from("/ws/notes.md"),
+                name: "notes.md".to_string(),
+            },
+            QuickOpenItem {
+                path: PathBuf::from("/ws/my-notes.md"),
+                name: "my-notes.md".to_string(),
+            },
+        ];
+        let ranked = rank_quick_open(&files, &[], "note", Some(Path::new("/ws")), 50);
+        assert_eq!(ranked[0].name, "notes.md");
+        assert_eq!(ranked[1].name, "my-notes.md");
+    }
+
+    #[test]
+    fn rank_quick_open_name_beats_path() {
+        let files = vec![
+            QuickOpenItem {
+                path: PathBuf::from("/ws/src/readme.md"),
+                name: "readme.md".to_string(),
+            },
+            QuickOpenItem {
+                path: PathBuf::from("/ws/notes.md"),
+                name: "notes.md".to_string(),
+            },
+        ];
+        let by_note = rank_quick_open(&files, &[], "note", Some(Path::new("/ws")), 50);
+        assert_eq!(by_note[0].name, "notes.md");
+        let by_src = rank_quick_open(&files, &[], "src", Some(Path::new("/ws")), 50);
+        assert_eq!(by_src[0].name, "readme.md");
+    }
+
+    #[test]
+    fn rank_quick_open_case_insensitive() {
+        let files = vec![QuickOpenItem {
+            path: PathBuf::from("/ws/ReadME.md"),
+            name: "ReadME.md".to_string(),
+        }];
+        let ranked = rank_quick_open(&files, &[], "readme", Some(Path::new("/ws")), 50);
+        assert_eq!(ranked.len(), 1);
+    }
+
+    #[test]
+    fn rank_quick_open_caps_at_limit() {
+        let files: Vec<QuickOpenItem> = (0..60)
+            .map(|i| QuickOpenItem {
+                path: PathBuf::from(format!("/ws/file{i}.md")),
+                name: format!("file{i}.md"),
+            })
+            .collect();
+        let ranked = rank_quick_open(&files, &[], "", None, 50);
+        assert_eq!(ranked.len(), 50);
+    }
+
+    #[test]
+    fn rank_quick_open_matches_relative_path() {
+        let files = vec![QuickOpenItem {
+            path: PathBuf::from("/ws/notes/alpha.md"),
+            name: "alpha.md".to_string(),
+        }];
+        let ranked = rank_quick_open(&files, &[], "notes", Some(Path::new("/ws")), 50);
+        assert_eq!(ranked.len(), 1);
+        assert_eq!(ranked[0].name, "alpha.md");
+    }
+
+    #[test]
+    fn rank_quick_open_normalizes_path_separators() {
+        let files = vec![QuickOpenItem {
+            path: PathBuf::from("/ws").join("notes").join("alpha.md"),
+            name: "alpha.md".to_string(),
+        }];
+        let ranked = rank_quick_open(&files, &[], "notes/alpha", Some(Path::new("/ws")), 50);
+        assert_eq!(ranked.len(), 1);
     }
 }

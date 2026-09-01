@@ -62,6 +62,10 @@ impl AppStore {
         self.show_find_in_files = show;
     }
 
+    pub const fn set_quick_open(&mut self, show: bool) {
+        self.show_quick_open = show;
+    }
+
     /// Set theme and persist.
     pub fn set_theme(&mut self, theme: AppTheme) {
         self.theme = theme;

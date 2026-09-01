@@ -109,6 +109,7 @@ pub struct TabContextMenuProps {
     pub t: &'static Translations,
     pub tab_id: usize,
     pub tab_path: Option<PathBuf>,
+    pub is_preview: bool,
     pub can_close: bool,
     pub can_close_others: bool,
     pub store: Signal<AppStore>,
@@ -119,10 +120,12 @@ pub struct TabContextMenuProps {
 pub fn TabContextMenu(props: TabContextMenuProps) -> Element {
     let cm = props.t.context_menu;
     let close_label = props.t.tab_bar.close_tab;
+    let keep_open_label = props.t.tab_bar.keep_open;
     let tab_id = props.tab_id;
     let mut store = props.store;
     let can_close = props.can_close;
     let can_close_others = props.can_close_others;
+    let is_preview = props.is_preview;
 
     rsx! {
         ContextMenu {
@@ -131,9 +134,19 @@ pub fn TabContextMenu(props: TabContextMenuProps) -> Element {
                 {props.children}
             }
             ContextMenuContent {
-                if can_close {
+                if is_preview {
                     ContextMenuItem {
                         index: 0usize,
+                        value: "keep_open".to_string(),
+                        on_select: move |_| {
+                            store.write().pin_tab(tab_id);
+                        },
+                        "{keep_open_label}"
+                    }
+                }
+                if can_close {
+                    ContextMenuItem {
+                        index: 1usize,
                         value: "close".to_string(),
                         on_select: move |_| {
                             store.write().close_tab(tab_id);
@@ -143,7 +156,7 @@ pub fn TabContextMenu(props: TabContextMenuProps) -> Element {
                 }
                 if can_close_others {
                     ContextMenuItem {
-                        index: 1usize,
+                        index: 2usize,
                         value: "close_others".to_string(),
                         on_select: move |_| {
                             store.write().close_other_tabs(tab_id);
@@ -152,7 +165,7 @@ pub fn TabContextMenu(props: TabContextMenuProps) -> Element {
                     }
                 }
                 ContextMenuItem {
-                    index: 2usize,
+                    index: 3usize,
                     value: "export_html".to_string(),
                     on_select: move |_| {
                         let s = store();

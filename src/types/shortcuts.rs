@@ -8,6 +8,7 @@ pub enum ShortcutAction {
     SaveAs,
     OpenFile,
     OpenFolder,
+    QuickOpen,
     NewTab,
     CloseTab,
     ToggleSidebar,
@@ -31,6 +32,7 @@ impl ShortcutAction {
             Self::SaveAs,
             Self::OpenFile,
             Self::OpenFolder,
+            Self::QuickOpen,
             Self::NewTab,
             Self::CloseTab,
             Self::ToggleSidebar,
@@ -50,7 +52,13 @@ impl ShortcutAction {
     #[must_use]
     pub const fn category(self) -> ShortcutCategory {
         match self {
-            Self::Save | Self::SaveAs | Self::OpenFile | Self::OpenFolder | Self::NewTab | Self::CloseTab => {
+            Self::Save
+            | Self::SaveAs
+            | Self::OpenFile
+            | Self::OpenFolder
+            | Self::QuickOpen
+            | Self::NewTab
+            | Self::CloseTab => {
                 ShortcutCategory::FileAndTabs
             }
             Self::ToggleSidebar | Self::ToggleZen | Self::CycleMode => ShortcutCategory::LayoutAndModes,
@@ -69,6 +77,7 @@ impl ShortcutAction {
             Self::SaveAs => "Ctrl+Shift+S",
             Self::OpenFile => "Ctrl+O",
             Self::OpenFolder => "Ctrl+Shift+O",
+            Self::QuickOpen => "Ctrl+P",
             Self::NewTab => "Ctrl+T",
             Self::CloseTab => "Ctrl+W",
             Self::ToggleSidebar => "Ctrl+B",
@@ -268,6 +277,9 @@ pub struct ShortcutsConfig {
     #[serde(default = "default_open_folder")]
     pub open_folder: String,
 
+    #[serde(default = "default_quick_open")]
+    pub quick_open: String,
+
     #[serde(default = "default_new_tab")]
     pub new_tab: String,
 
@@ -317,6 +329,9 @@ fn default_open_file() -> String {
 fn default_open_folder() -> String {
     ShortcutAction::OpenFolder.default_binding().to_string()
 }
+fn default_quick_open() -> String {
+    ShortcutAction::QuickOpen.default_binding().to_string()
+}
 fn default_new_tab() -> String {
     ShortcutAction::NewTab.default_binding().to_string()
 }
@@ -361,6 +376,7 @@ impl Default for ShortcutsConfig {
             save_as: default_save_as(),
             open_file: default_open_file(),
             open_folder: default_open_folder(),
+            quick_open: default_quick_open(),
             new_tab: default_new_tab(),
             close_tab: default_close_tab(),
             toggle_sidebar: default_toggle_sidebar(),
@@ -386,6 +402,7 @@ impl ShortcutsConfig {
             ShortcutAction::SaveAs => &self.save_as,
             ShortcutAction::OpenFile => &self.open_file,
             ShortcutAction::OpenFolder => &self.open_folder,
+            ShortcutAction::QuickOpen => &self.quick_open,
             ShortcutAction::NewTab => &self.new_tab,
             ShortcutAction::CloseTab => &self.close_tab,
             ShortcutAction::ToggleSidebar => &self.toggle_sidebar,
@@ -408,6 +425,7 @@ impl ShortcutsConfig {
             ShortcutAction::SaveAs => self.save_as = binding,
             ShortcutAction::OpenFile => self.open_file = binding,
             ShortcutAction::OpenFolder => self.open_folder = binding,
+            ShortcutAction::QuickOpen => self.quick_open = binding,
             ShortcutAction::NewTab => self.new_tab = binding,
             ShortcutAction::CloseTab => self.close_tab = binding,
             ShortcutAction::ToggleSidebar => self.toggle_sidebar = binding,
@@ -507,6 +525,7 @@ mod tests {
         assert_eq!(config.match_event("S", true, false, true, false), Some(ShortcutAction::SaveAs));
         assert_eq!(config.match_event("o", true, false, false, false), Some(ShortcutAction::OpenFile));
         assert_eq!(config.match_event("O", true, false, true, false), Some(ShortcutAction::OpenFolder));
+        assert_eq!(config.match_event("p", true, false, false, false), Some(ShortcutAction::QuickOpen));
         assert_eq!(config.match_event("e", true, false, false, false), Some(ShortcutAction::CycleMode));
         assert_eq!(config.match_event("b", true, false, false, false), Some(ShortcutAction::ToggleSidebar));
         assert_eq!(config.match_event(",", true, false, false, false), Some(ShortcutAction::ToggleSettings));

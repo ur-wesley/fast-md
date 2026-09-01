@@ -1,8 +1,8 @@
 use crate::services::fs::{
     pick_file_async, pick_folder_async, pick_save_file_async,
 };
-use crate::state::{kick_pending_tree_scan, AppStore};
-use crate::types::DocumentMode;
+use crate::state::{kick_pending_document_loads, kick_pending_tree_scan, AppStore, OpenKind};
+use crate::types::{DocumentFormat, DocumentMode};
 use dioxus::prelude::*;
 use dioxus_free_icons::Icon;
 use dioxus_free_icons::icons::ld_icons::{
@@ -25,6 +25,9 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
     let is_dirty = store_read.active_tab().is_some_and(|tab| tab.is_dirty);
     let current_mode = store_read.mode;
     let is_zen = store_read.is_zen;
+    let is_plain_text = store_read
+        .active_tab()
+        .is_some_and(|tab| tab.parsed.format == DocumentFormat::PlainText);
 
     rsx! {
         header {
@@ -43,7 +46,8 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
                         onclick: move |_| {
                             spawn(async move {
                                 if let Some(path) = pick_file_async().await {
-                                    store.write().open_file_from_path(path);
+                                    store.write().open_file_from_path(path, OpenKind::Pinned);
+                                    kick_pending_document_loads(store);
                                     kick_pending_tree_scan(store);
                                 }
                             });
@@ -181,24 +185,26 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
 
                     div { class: "toolbar-inner-sep w-[1px] h-full bg-[var(--border-color)] shrink-0" }
 
-                    Hint {
-                        text: t.toolbar.mode_wysiwyg,
-                        side: ContentSide::Bottom,
-                        button {
-                            class: if current_mode == DocumentMode::Wysiwyg { "toolbar-integrated-btn active" } else { "toolbar-integrated-btn" },
-                            title: "{t.toolbar.mode_wysiwyg}",
-                            onclick: move |_| {
-                                dioxus::prelude::document::eval(
-                                    "window.prepareDocumentModeChange && window.prepareDocumentModeChange();",
-                                );
-                                store.write().set_mode(DocumentMode::Wysiwyg);
-                            },
-                            Icon { width: 13, height: 13, icon: LdSparkles }
-                            span { class: "btn-text", "{t.toolbar.mode_wysiwyg}" }
+                    if !is_plain_text {
+                        Hint {
+                            text: t.toolbar.mode_wysiwyg,
+                            side: ContentSide::Bottom,
+                            button {
+                                class: if current_mode == DocumentMode::Wysiwyg { "toolbar-integrated-btn active" } else { "toolbar-integrated-btn" },
+                                title: "{t.toolbar.mode_wysiwyg}",
+                                onclick: move |_| {
+                                    dioxus::prelude::document::eval(
+                                        "window.prepareDocumentModeChange && window.prepareDocumentModeChange();",
+                                    );
+                                    store.write().set_mode(DocumentMode::Wysiwyg);
+                                },
+                                Icon { width: 13, height: 13, icon: LdSparkles }
+                                span { class: "btn-text", "{t.toolbar.mode_wysiwyg}" }
+                            }
                         }
-                    }
 
-                    div { class: "toolbar-inner-sep w-[1px] h-full bg-[var(--border-color)] shrink-0" }
+                        div { class: "toolbar-inner-sep w-[1px] h-full bg-[var(--border-color)] shrink-0" }
+                    }
 
                     Hint {
                         text: t.toolbar.mode_source,

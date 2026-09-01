@@ -1,8 +1,8 @@
 use super::{
     CommonTranslations, ContextMenuTranslations, EditorTranslations, FindInFilesTranslations,
-    FrontmatterTranslations, SearchBarTranslations, SettingsTranslations, ShortcutsTranslations,
-    SidebarTranslations, StatusBarTranslations, TabBarTranslations, TitleBarTranslations,
-    ToolbarTranslations, Translations, ZenTranslations,
+    FrontmatterTranslations, QuickOpenTranslations, SearchBarTranslations, SettingsTranslations,
+    ShortcutsTranslations, SidebarTranslations, StatusBarTranslations, TabBarTranslations,
+    TitleBarTranslations, ToolbarTranslations, Translations, ZenTranslations,
 };
 
 pub const DE: Translations = Translations {
@@ -137,6 +137,7 @@ pub const DE: Translations = Translations {
     tab_bar: TabBarTranslations {
         new_file_or_tab: "Neuer Tab (Strg+T)",
         close_tab: "Tab schließen",
+        keep_open: "Tab festhalten",
         unsaved_changes: "Ungespeicherte Änderungen",
         no_open_tabs: "Kein geöffnetes Dokument",
         no_open_tabs_desc: "Erstellen Sie einen neuen Tab oder wählen Sie eine Datei, um zu beginnen.",
@@ -160,9 +161,17 @@ pub const DE: Translations = Translations {
         placeholder: "Arbeitsbereich durchsuchen...",
         indexing: "Dateien werden indexiert...",
         searching: "Suche läuft...",
-        type_to_search: "Suchbegriff eingeben (Ordner und Tabs)",
+        type_to_search: "Suchbegriff eingeben (Arbeitsbereich)",
         no_results: "Keine Treffer",
         no_results_desc: "Andere Begriffe versuchen oder zuerst einen Ordner öffnen.",
+        close: "Schließen",
+    },
+    quick_open: QuickOpenTranslations {
+        title: "Schnell öffnen",
+        placeholder: "Zur Datei springen...",
+        no_folder: "Ordner öffnen, um Arbeitsbereich-Dateien zu durchsuchen",
+        no_results: "Keine Dateien gefunden",
+        no_results_desc: "Anderen Namen versuchen oder zuerst einen Ordner öffnen.",
         close: "Schließen",
     },
     settings: SettingsTranslations {
@@ -310,6 +319,8 @@ pub const DE: Translations = Translations {
         action_open_file_desc: "Dokument von der Festplatte öffnen",
         action_open_folder: "Ordner öffnen",
         action_open_folder_desc: "Verzeichnis im Dateiexplorer öffnen",
+        action_quick_open: "Schnell öffnen",
+        action_quick_open_desc: "Zu einer Datei im Arbeitsbereich springen",
         action_new_tab: "Neuer Tab",
         action_new_tab_desc: "Neuen leeren Dokument-Tab erstellen",
         action_close_tab: "Tab schließen",

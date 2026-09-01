@@ -1,5 +1,6 @@
 use super::{find_primary_doc_in_dir, AppStore};
 use crate::services::workspace::{canonical_workspace_key, save_workspaces};
+use crate::state::OpenKind;
 use crate::types::WorkspaceSnapshot;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -53,18 +54,19 @@ impl AppStore {
         }
 
         self.tabs.clear();
+        self.preview_tab_id = None;
         self.next_tab_id = 1;
         self.active_tab_id = 0;
 
         for path in &snapshot.tabs {
             if path.is_file() {
-                self.open_file_from_path(path.clone());
+                self.open_file_from_path(path.clone(), OpenKind::Pinned);
             }
         }
 
         if self.tabs.is_empty() {
             if let Some(primary) = find_primary_doc_in_dir(&snapshot.folder) {
-                self.open_file_from_path(primary);
+                self.open_file_from_path(primary, OpenKind::Pinned);
             }
         }
 
@@ -96,12 +98,13 @@ impl AppStore {
             let _ = self.restore_workspace_snapshot(&snapshot);
         } else {
             self.tabs.clear();
+            self.preview_tab_id = None;
             self.next_tab_id = 1;
             self.active_tab_id = 0;
             self.expanded_dirs.clear();
             self.open_directory(folder.clone());
             if let Some(primary) = find_primary_doc_in_dir(&folder) {
-                self.open_file_from_path(primary);
+                self.open_file_from_path(primary, OpenKind::Pinned);
             }
         }
 
@@ -166,13 +169,13 @@ impl AppStore {
         if path.is_dir() {
             self.open_directory(path.to_path_buf());
             if let Some(primary) = find_primary_doc_in_dir(path) {
-                self.open_file_from_path(primary);
+                self.open_file_from_path(primary, OpenKind::Pinned);
             }
         } else {
             if path.parent().is_some() {
                 self.open_directory(workspace_root);
             }
-            self.open_file_from_path(path.to_path_buf());
+            self.open_file_from_path(path.to_path_buf(), OpenKind::Pinned);
         }
         self.workspaces.last = Some(key);
         self.snapshot_current_workspace();

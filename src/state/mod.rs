@@ -3,20 +3,23 @@ mod layout;
 mod tabs;
 mod workspace;
 
-use crate::services::fs::scan_file_tree;
+use crate::services::fs::{read_document_file, scan_file_tree};
 use crate::services::fts;
-use crate::services::markdown::parse_markdown_document;
+use crate::services::markdown::{parse_document, parse_markdown_document};
 use crate::services::settings::{load_settings, save_settings};
 use crate::services::workspace::load_workspaces;
 use crate::types::{
-    AppSettings, AppTheme, DocumentMode, FileFilterMode, FileTreeEntry, Language, SidebarPosition,
-    SidebarTab, TabItem, UpdateStatus, WorkspacesFile,
+    AppSettings, AppTheme, DocumentFormat, DocumentMode, FileFilterMode, FileTreeEntry, Language,
+    ParseStatus, SidebarPosition, SidebarTab, TabItem, UpdateStatus, WorkspacesFile,
 };
+use dioxus::dioxus_core::spawn_forever;
 use dioxus::prelude::{spawn, Signal, WritableExt};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 pub const WELCOME_DOC: &str = include_str!("../assets/welcome.md");
+
+pub use files::{DocumentLoadJob, OpenKind};
 
 /// Central Application State Store managing all tabs, preferences, layout, and document data.
 #[allow(clippy::struct_excessive_bools)]
@@ -24,6 +27,7 @@ pub const WELCOME_DOC: &str = include_str!("../assets/welcome.md");
 pub struct AppStore {
     pub tabs: Vec<TabItem>,
     pub active_tab_id: usize,
+    pub preview_tab_id: Option<usize>,
     pub next_tab_id: usize,
     pub mode: DocumentMode,
     pub language: Language,
@@ -40,11 +44,15 @@ pub struct AppStore {
     pub sticky_headers: bool,
     pub show_search: bool,
     pub show_find_in_files: bool,
+    pub show_quick_open: bool,
     pub show_settings_modal: bool,
     pub file_tree: Vec<FileTreeEntry>,
     pub is_loading_files: bool,
     pub opened_folder: Option<PathBuf>,
     pub pending_tree_scan: Option<PathBuf>,
+    pub next_parse_gen: u64,
+    pub pending_reparses: Vec<(usize, u64)>,
+    pub pending_document_loads: Vec<DocumentLoadJob>,
     pub expanded_dirs: HashSet<PathBuf>,
     pub workspaces: WorkspacesFile,
     pub settings: AppSettings,
@@ -65,9 +73,13 @@ impl Default for AppStore {
                 parsed: welcome_parsed,
                 is_dirty: false,
                 html_revision: 0,
+                parse_gen: 0,
+                parse_status: ParseStatus::Ready,
             }],
             active_tab_id: 1,
+            preview_tab_id: None,
             next_tab_id: 2,
+            next_parse_gen: 1,
             mode: settings.default_mode,
             language: settings.language,
             theme: settings.theme,
@@ -83,11 +95,14 @@ impl Default for AppStore {
             sticky_headers: settings.sticky_headers,
             show_search: false,
             show_find_in_files: false,
+            show_quick_open: false,
             show_settings_modal: false,
             file_tree: Vec::new(),
             is_loading_files: false,
             opened_folder: None,
             pending_tree_scan: None,
+            pending_reparses: Vec::new(),
+            pending_document_loads: Vec::new(),
             expanded_dirs: HashSet::new(),
             workspaces,
             settings,
@@ -149,6 +164,19 @@ impl AppStore {
     pub fn active_tab(&self) -> Option<&TabItem> {
         self.tabs.iter().find(|t| t.id == self.active_tab_id)
     }
+
+    pub fn queue_tab_reparse(&mut self, tab_id: usize, gen: u64) {
+        self.pending_reparses.retain(|(id, _)| *id != tab_id);
+        self.pending_reparses.push((tab_id, gen));
+    }
+
+    pub fn take_pending_reparses(&mut self) -> Vec<(usize, u64)> {
+        std::mem::take(&mut self.pending_reparses)
+    }
+
+    pub fn take_pending_document_loads(&mut self) -> Vec<DocumentLoadJob> {
+        std::mem::take(&mut self.pending_document_loads)
+    }
 }
 
 /// Dispatch an application shortcut action globally.
@@ -188,7 +216,8 @@ pub fn execute_shortcut_action(mut store: Signal<AppStore>, action: crate::types
         ShortcutAction::OpenFile => {
             spawn(async move {
                 if let Some(path) = pick_file_async().await {
-                    store.write().open_file_from_path(path);
+                    store.write().open_file_from_path(path, OpenKind::Pinned);
+                    kick_pending_document_loads(store);
                     kick_pending_tree_scan(store);
                 }
             });
@@ -224,7 +253,12 @@ pub fn execute_shortcut_action(mut store: Signal<AppStore>, action: crate::types
                 ",
             );
         }
+        ShortcutAction::QuickOpen => {
+            store.write().set_find_in_files(false);
+            store.write().set_quick_open(true);
+        }
         ShortcutAction::FindInFiles => {
+            store.write().set_quick_open(false);
             store.write().set_find_in_files(true);
         }
         ShortcutAction::FormatDocument => {
@@ -252,6 +286,8 @@ pub fn handle_escape_action(mut store: Signal<AppStore>) {
         s.set_settings_modal(false);
     } else if s.show_find_in_files {
         s.set_find_in_files(false);
+    } else if s.show_quick_open {
+        s.set_quick_open(false);
     } else if s.is_zen {
         s.set_zen(false);
     } else if s.show_search {
@@ -274,9 +310,8 @@ pub async fn complete_directory_scan(mut store: Signal<AppStore>, dir: PathBuf) 
     }
 }
 
-/// Drop FTS index and rebuild for a new workspace root.
+/// Rebuild session FTS index for a workspace root without dropping the current one.
 pub fn kick_fts_rebuild_forced(root: PathBuf, filter: FileFilterMode) {
-    crate::services::fts::drop_index();
     std::thread::spawn(move || {
         let _ = crate::services::fts::rebuild_root(root, filter);
     });
@@ -303,6 +338,83 @@ pub fn kick_pending_tree_scan(mut store: Signal<AppStore>) {
         spawn(async move {
             complete_directory_scan(store, dir).await;
         });
+    }
+}
+
+/// Spawn pending document load jobs queued during file open.
+pub fn kick_pending_document_loads(mut store: Signal<AppStore>) {
+    let jobs = store.write().take_pending_document_loads();
+    for job in jobs {
+        kick_document_load(store, job);
+    }
+}
+
+/// Kick async read + parse for a newly opened document tab shell.
+pub fn kick_document_load(store: Signal<AppStore>, job: DocumentLoadJob) {
+    spawn_forever(async move {
+        complete_document_load(store, job.tab_id, job.path, job.gen).await;
+    });
+}
+
+/// Read file content and parse document on background threads, applying results when generation matches.
+pub async fn complete_document_load(
+    mut store: Signal<AppStore>,
+    tab_id: usize,
+    path: PathBuf,
+    gen: u64,
+) {
+    let read_res = tokio::task::spawn_blocking({
+        let path = path.clone();
+        move || read_document_file(&path).unwrap_or_else(|_| WELCOME_DOC.to_string())
+    })
+    .await;
+
+    let Ok(content) = read_res else {
+        return;
+    };
+
+    if !store.write().apply_tab_content(tab_id, gen, content.clone()) {
+        return;
+    }
+
+    let format = DocumentFormat::from_path(Some(&path));
+    let parse_res = tokio::task::spawn_blocking(move || parse_document(&content, format)).await;
+
+    if let Ok(parsed) = parse_res {
+        store.write().apply_tab_parsed(tab_id, gen, parsed);
+    }
+}
+
+/// Debounced async reparse for a tab after content edits.
+pub fn schedule_tab_reparse(mut store: Signal<AppStore>, tab_id: usize, gen: u64) {
+    spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let (content, format) = {
+            let s = store();
+            let Some(tab) = s.tabs.iter().find(|t| t.id == tab_id) else {
+                return;
+            };
+            if tab.parse_gen != gen {
+                return;
+            }
+            (
+                tab.content.clone(),
+                DocumentFormat::from_path(tab.path.as_deref()),
+            )
+        };
+
+        let parse_res = tokio::task::spawn_blocking(move || parse_document(&content, format)).await;
+        if let Ok(parsed) = parse_res {
+            store.write().apply_tab_parsed(tab_id, gen, parsed);
+        }
+    });
+}
+
+/// Drain queued tab reparses after store mutations.
+pub fn kick_pending_reparses(mut store: Signal<AppStore>) {
+    let jobs = store.write().take_pending_reparses();
+    for (tab_id, gen) in jobs {
+        schedule_tab_reparse(store, tab_id, gen);
     }
 }
 
@@ -431,6 +543,10 @@ mod tests {
         assert_eq!(store.tabs[0].content, "# Modified Title\n\nNew edited body text.");
 
         store.set_mode(DocumentMode::Source);
+        let content = store.tabs[0].content.clone();
+        let gen = store.tabs[0].parse_gen;
+        let parsed = parse_markdown_document(&content);
+        store.apply_tab_parsed(store.tabs[0].id, gen, parsed);
         assert_eq!(store.tabs[0].parsed.toc.len(), 1);
         assert_eq!(store.tabs[0].parsed.toc[0].title, "Modified Title");
     }
@@ -464,6 +580,9 @@ mod tests {
 
         let unformatted_json = r#"{"app":"fast-md","enabled":true}"#;
         store.update_active_tab_content(unformatted_json.to_string());
+        let gen = store.tabs[0].parse_gen;
+        let parsed = parse_document(unformatted_json, DocumentFormat::Json);
+        store.apply_tab_parsed(store.tabs[0].id, gen, parsed);
         assert_eq!(store.tabs[0].parsed.format, DocumentFormat::Json);
         assert!(store.tabs[0].is_dirty);
         assert!(store.tabs[0].parsed.validation_error.is_none());
@@ -513,7 +632,10 @@ mod tests {
     fn test_new_with_options_file() {
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let readme_path = manifest_dir.join("README.md");
-        let store = AppStore::new_with_options(Some(&readme_path), None, None, false);
+        let mut store = AppStore::default();
+        store.workspaces.last = None;
+        store.workspaces.workspaces.clear();
+        store.boot_from_cli_path(&readme_path);
 
         assert_eq!(store.tabs.len(), 1);
         if let Some(path) = &store.tabs[0].path {
@@ -525,9 +647,11 @@ mod tests {
     #[test]
     fn test_new_with_options_directory() {
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let store = AppStore::new_with_options(Some(&manifest_dir), None, None, false);
+        let mut store = AppStore::default();
+        store.workspaces.last = None;
+        store.workspaces.workspaces.clear();
+        store.boot_from_cli_path(&manifest_dir);
 
-        // Should open the directory in file tree and find README.md
         assert_eq!(store.opened_folder.as_ref(), Some(&manifest_dir));
         assert!(!store.file_tree.is_empty());
         assert_eq!(store.tabs.len(), 1);
@@ -563,10 +687,10 @@ mod tests {
         let mut store = AppStore::default();
         assert!(store.file_tree.is_empty());
 
-        let scan_parent = store.open_file_from_path(readme.clone());
-        assert_eq!(scan_parent.as_ref(), Some(&manifest_dir));
+        store.open_file_from_path(readme.clone(), OpenKind::Preview);
         assert!(store.is_loading_files);
         assert_eq!(store.pending_tree_scan, Some(manifest_dir.clone()));
+        assert!(!store.pending_document_loads.is_empty());
         assert!(store.tabs.iter().any(|t| t.path.as_ref() == Some(&readme)));
 
         let tree = scan_file_tree(&manifest_dir, store.file_filter_mode).unwrap();

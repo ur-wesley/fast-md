@@ -1,7 +1,7 @@
-mod file_tree;
+pub(crate) mod file_tree;
 mod toc;
 
-use crate::state::{kick_pending_tree_scan, AppStore};
+use crate::state::{kick_pending_document_loads, kick_pending_tree_scan, AppStore, OpenKind};
 use crate::types::{FileFilterMode, SidebarTab};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::input::Input;
@@ -144,8 +144,15 @@ pub fn Sidebar(props: SidebarProps) -> Element {
         }
     });
 
-    let open_file = move |path: PathBuf| {
-        store.write().open_file_from_path(path);
+    let open_file_preview = move |path: PathBuf| {
+        store.write().open_file_from_path(path, OpenKind::Preview);
+        kick_pending_document_loads(store);
+        kick_pending_tree_scan(store);
+    };
+
+    let open_file_pinned = move |path: PathBuf| {
+        store.write().open_file_from_path(path, OpenKind::Pinned);
+        kick_pending_document_loads(store);
         kick_pending_tree_scan(store);
     };
 
@@ -405,7 +412,8 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                                         on_toggle_dir: move |path| {
                                             store_for_rows.write().toggle_expanded_dir(path);
                                         },
-                                        on_select: open_file,
+                                        on_select: open_file_preview,
+                                        on_pin_select: open_file_pinned,
                                     }
                                 }
                             });

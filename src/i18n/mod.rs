@@ -147,6 +147,7 @@ pub struct StatusBarTranslations {
 pub struct TabBarTranslations {
     pub new_file_or_tab: &'static str,
     pub close_tab: &'static str,
+    pub keep_open: &'static str,
     pub unsaved_changes: &'static str,
     pub no_open_tabs: &'static str,
     pub no_open_tabs_desc: &'static str,
@@ -179,6 +180,16 @@ pub struct FindInFilesTranslations {
     pub indexing: &'static str,
     pub searching: &'static str,
     pub type_to_search: &'static str,
+    pub no_results: &'static str,
+    pub no_results_desc: &'static str,
+    pub close: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct QuickOpenTranslations {
+    pub title: &'static str,
+    pub placeholder: &'static str,
+    pub no_folder: &'static str,
     pub no_results: &'static str,
     pub no_results_desc: &'static str,
     pub close: &'static str,
@@ -334,6 +345,8 @@ pub struct ShortcutsTranslations {
     pub action_open_file_desc: &'static str,
     pub action_open_folder: &'static str,
     pub action_open_folder_desc: &'static str,
+    pub action_quick_open: &'static str,
+    pub action_quick_open_desc: &'static str,
     pub action_new_tab: &'static str,
     pub action_new_tab_desc: &'static str,
     pub action_close_tab: &'static str,
@@ -368,6 +381,7 @@ impl ShortcutsTranslations {
             crate::types::ShortcutAction::SaveAs => self.action_save_as,
             crate::types::ShortcutAction::OpenFile => self.action_open_file,
             crate::types::ShortcutAction::OpenFolder => self.action_open_folder,
+            crate::types::ShortcutAction::QuickOpen => self.action_quick_open,
             crate::types::ShortcutAction::NewTab => self.action_new_tab,
             crate::types::ShortcutAction::CloseTab => self.action_close_tab,
             crate::types::ShortcutAction::ToggleSidebar => self.action_toggle_sidebar,
@@ -390,6 +404,7 @@ impl ShortcutsTranslations {
             crate::types::ShortcutAction::SaveAs => self.action_save_as_desc,
             crate::types::ShortcutAction::OpenFile => self.action_open_file_desc,
             crate::types::ShortcutAction::OpenFolder => self.action_open_folder_desc,
+            crate::types::ShortcutAction::QuickOpen => self.action_quick_open_desc,
             crate::types::ShortcutAction::NewTab => self.action_new_tab_desc,
             crate::types::ShortcutAction::CloseTab => self.action_close_tab_desc,
             crate::types::ShortcutAction::ToggleSidebar => self.action_toggle_sidebar_desc,
@@ -429,6 +444,7 @@ pub struct Translations {
     pub zen: ZenTranslations,
     pub search_bar: SearchBarTranslations,
     pub find_in_files: FindInFilesTranslations,
+    pub quick_open: QuickOpenTranslations,
     pub settings: SettingsTranslations,
     pub context_menu: ContextMenuTranslations,
     pub shortcuts: ShortcutsTranslations,

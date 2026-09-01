@@ -1,3 +1,4 @@
+pub mod line_preview;
 pub mod editor;
 pub mod editor_toolbar;
 pub mod frontmatter_card;
@@ -13,8 +14,10 @@ pub mod workspace_switcher;
 pub mod zen_exit_button;
 pub mod context_menu;
 pub mod find_in_files;
+pub mod quick_open;
 pub mod hint;
 
+pub use line_preview::ConfigPreviewPane;
 pub use editor::Editor;
 pub use editor_toolbar::EditorToolbar;
 pub use settings_modal::SettingsModal;
@@ -31,4 +34,5 @@ pub use context_menu::{
     EditorContextMenu, FileTreeContextMenu, PreviewContextMenu, TabContextMenu,
 };
 pub use find_in_files::FindInFiles;
+pub use quick_open::QuickOpen;
 pub use hint::Hint;

@@ -1,8 +1,8 @@
 use super::AppStore;
 use crate::services::fs::save_document_file;
 use crate::services::fts;
-use crate::services::markdown::{parse_document, parse_markdown_document};
-use crate::types::{DocumentFormat, DocumentMode, TabItem};
+use crate::services::markdown::parse_markdown_document;
+use crate::types::{DocumentFormat, DocumentMode, LoadingKind, ParseStatus, TabItem};
 use std::path::{Path, PathBuf};
 
 impl AppStore {
@@ -18,6 +18,9 @@ impl AppStore {
     pub fn close_tab(&mut self, id: usize) {
         if let Some(pos) = self.tabs.iter().position(|t| t.id == id) {
             self.tabs.remove(pos);
+            if self.preview_tab_id == Some(id) {
+                self.preview_tab_id = None;
+            }
             if self.active_tab_id == id {
                 if self.tabs.is_empty() {
                     self.active_tab_id = 0;
@@ -34,6 +37,9 @@ impl AppStore {
     /// Close every tab except the one with `keep_id`.
     pub fn close_other_tabs(&mut self, keep_id: usize) {
         self.tabs.retain(|t| t.id == keep_id);
+        if self.preview_tab_id != Some(keep_id) {
+            self.preview_tab_id = None;
+        }
         self.active_tab_id = keep_id;
     }
 
@@ -42,6 +48,7 @@ impl AppStore {
         let tab_id = self.next_tab_id;
         self.next_tab_id = self.next_tab_id.saturating_add(1);
         let parsed = parse_markdown_document("");
+        let parse_gen = self.next_parse_generation();
 
         self.tabs.push(TabItem {
             id: tab_id,
@@ -51,6 +58,8 @@ impl AppStore {
             parsed,
             is_dirty: false,
             html_revision: 0,
+            parse_gen,
+            parse_status: ParseStatus::Ready,
         });
         self.active_tab_id = tab_id;
     }
@@ -59,24 +68,47 @@ impl AppStore {
     pub fn update_active_tab_content(&mut self, new_content: String) {
         let active_id = self.active_tab_id;
         let skip_parse = self.mode == DocumentMode::Wysiwyg;
-        if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
-            if tab.content != new_content {
-                tab.content = new_content;
-                tab.is_dirty = true;
-                if !skip_parse {
-                    let format = DocumentFormat::from_path(tab.path.as_deref());
-                    tab.parsed = parse_document(&tab.content, format);
+        let needs_reparse = {
+            let mut should_pin = false;
+            let result = if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+                if tab.content != new_content {
+                    tab.content = new_content;
+                    tab.is_dirty = true;
+                    should_pin = true;
+                    !skip_parse
+                } else {
+                    false
                 }
+            } else {
+                false
+            };
+            if should_pin {
+                self.pin_tab(active_id);
             }
+            result
+        };
+        if needs_reparse {
+            let gen = self.next_parse_generation();
+            if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+                tab.parse_gen = gen;
+                tab.parse_status = ParseStatus::Loading {
+                    kind: LoadingKind::Highlight,
+                };
+            }
+            self.queue_tab_reparse(active_id, gen);
         }
     }
 
     fn reparse_active_tab(&mut self) {
         let active_id = self.active_tab_id;
+        let gen = self.next_parse_generation();
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
-            let format = DocumentFormat::from_path(tab.path.as_deref());
-            tab.parsed = parse_document(&tab.content, format);
+            tab.parse_gen = gen;
+            tab.parse_status = ParseStatus::Loading {
+                kind: LoadingKind::Highlight,
+            };
         }
+        self.queue_tab_reparse(active_id, gen);
     }
 
     fn bump_active_tab_html_revision(&mut self) {
@@ -98,6 +130,7 @@ impl AppStore {
     /// Toggle a Markdown task checkbox (- [ ] / - [x]) at target index in active tab.
     pub fn toggle_active_tab_task(&mut self, target_idx: usize, is_checked: bool) {
         let active_id = self.active_tab_id;
+        let mut changed = false;
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
             let mut current_idx = 0;
             let mut new_lines = Vec::new();
@@ -148,27 +181,49 @@ impl AppStore {
             }
             if tab.content != new_content {
                 tab.content = new_content;
-                let format = DocumentFormat::from_path(tab.path.as_deref());
-                tab.parsed = parse_document(&tab.content, format);
                 tab.is_dirty = true;
                 tab.html_revision = tab.html_revision.wrapping_add(1);
+                changed = true;
             }
+        }
+        if changed {
+            self.pin_tab(active_id);
+            let gen = self.next_parse_generation();
+            if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+                tab.parse_gen = gen;
+                tab.parse_status = ParseStatus::Loading {
+                    kind: LoadingKind::Highlight,
+                };
+            }
+            self.queue_tab_reparse(active_id, gen);
         }
     }
 
     /// Format the source of the active tab (Markdown table alignment or JSON/TOML/YAML pretty printing).
     pub fn format_active_tab(&mut self) {
         let active_id = self.active_tab_id;
+        let mut changed = false;
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
             let format = DocumentFormat::from_path(tab.path.as_deref());
             if let Ok(formatted) = crate::services::formatter::format_document(&tab.content, format) {
                 if tab.content != formatted {
                     tab.content = formatted;
-                    tab.parsed = parse_document(&tab.content, format);
                     tab.is_dirty = true;
                     tab.html_revision = tab.html_revision.wrapping_add(1);
+                    changed = true;
                 }
             }
+        }
+        if changed {
+            self.pin_tab(active_id);
+            let gen = self.next_parse_generation();
+            if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == active_id) {
+                tab.parse_gen = gen;
+                tab.parse_status = ParseStatus::Loading {
+                    kind: LoadingKind::Highlight,
+                };
+            }
+            self.queue_tab_reparse(active_id, gen);
         }
     }
 
@@ -254,14 +309,14 @@ impl AppStore {
 
     /// Update file content if changed on disk.
     pub fn update_file_content_if_modified(&mut self, path: &Path, new_content: &str) {
+        let mut reparses = Vec::new();
         for tab in &mut self.tabs {
             if let Some(ref p) = tab.path {
                 if p == path && tab.content != new_content {
                     tab.content.clone_from(&new_content.to_string());
-                    let format = DocumentFormat::from_path(Some(p));
-                    tab.parsed = parse_document(new_content, format);
                     tab.is_dirty = false;
                     tab.html_revision = tab.html_revision.wrapping_add(1);
+                    reparses.push(tab.id);
                     let path = p.clone();
                     let content = new_content.to_string();
                     std::thread::spawn(move || {
@@ -269,6 +324,16 @@ impl AppStore {
                     });
                 }
             }
+        }
+        for tab_id in reparses {
+            let gen = self.next_parse_generation();
+            if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == tab_id) {
+                tab.parse_gen = gen;
+                tab.parse_status = ParseStatus::Loading {
+                    kind: LoadingKind::Highlight,
+                };
+            }
+            self.queue_tab_reparse(tab_id, gen);
         }
     }
 
@@ -287,6 +352,7 @@ impl AppStore {
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+    use crate::state::OpenKind;
 
     #[test]
     fn test_toggle_active_tab_task() {
@@ -295,22 +361,31 @@ mod tests {
         let markdown = "# Tasks\n\n- [ ] Task 1\n- [x] Task 2\n- [ ] Task 3\n";
         store.update_active_tab_content(markdown.to_string());
 
-        // Toggle index 0 from unchecked to checked
         store.toggle_active_tab_task(0, true);
         let tab = store.active_tab().unwrap();
         assert!(tab.content.contains("- [x] Task 1"));
         assert!(tab.content.contains("- [x] Task 2"));
         assert!(tab.content.contains("- [ ] Task 3"));
 
-        // Toggle index 1 from checked to unchecked
         store.toggle_active_tab_task(1, false);
         let tab = store.active_tab().unwrap();
         assert!(tab.content.contains("- [ ] Task 2"));
 
-        // Toggle index 2 from unchecked to checked
         store.toggle_active_tab_task(2, true);
         let tab = store.active_tab().unwrap();
         assert!(tab.content.contains("- [x] Task 3"));
+    }
+
+    #[test]
+    fn test_update_active_tab_content_without_waiting_parse() {
+        let mut store = AppStore::default();
+        store.update_active_tab_content("hello".to_string());
+        assert_eq!(store.tabs[0].content, "hello");
+        assert!(matches!(
+            store.tabs[0].parse_status,
+            ParseStatus::Loading { .. }
+        ));
+        assert!(!store.pending_reparses.is_empty());
     }
 
     #[test]
@@ -332,16 +407,62 @@ mod tests {
         assert_eq!(store.tabs.len(), 1);
         let first_id = store.tabs[0].id;
 
-        // Close the only remaining tab
         store.close_tab(first_id);
         assert!(store.tabs.is_empty());
         assert_eq!(store.active_tab_id, 0);
         assert!(store.active_tab().is_none());
 
-        // Opening a new tab works after all tabs are closed
         store.new_empty_tab();
         assert_eq!(store.tabs.len(), 1);
         assert!(store.active_tab().is_some());
+    }
+
+    #[test]
+    fn test_edit_pins_preview_tab() {
+        let dir = std::env::temp_dir().join(format!(
+            "fast_md_edit_pin_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("edit.md");
+        let _ = std::fs::write(&path, "# Edit\n");
+
+        let mut store = AppStore::default();
+        store.drop_welcome_tab();
+        store.open_file_from_path(path, OpenKind::Preview);
+        assert!(store.preview_tab_id.is_some());
+
+        store.update_active_tab_content("# Edit changed\n".to_string());
+        assert!(store.preview_tab_id.is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_close_preview_clears_preview_tab_id() {
+        let dir = std::env::temp_dir().join(format!(
+            "fast_md_close_preview_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("close.md");
+        let _ = std::fs::write(&path, "# Close\n");
+
+        let mut store = AppStore::default();
+        store.drop_welcome_tab();
+        store.open_file_from_path(path, OpenKind::Preview);
+        let preview_id = store.preview_tab_id.expect("preview tab");
+
+        store.close_tab(preview_id);
+        assert!(store.preview_tab_id.is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -354,4 +475,3 @@ mod tests {
         assert_eq!("hello\nworld\n".split('\n').count(), 3);
     }
 }
-
