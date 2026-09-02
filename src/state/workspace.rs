@@ -38,6 +38,18 @@ impl AppStore {
             active,
             expanded,
         });
+        let alive: Vec<PathBuf> = self
+            .workspaces
+            .workspaces
+            .iter()
+            .map(|w| w.folder.clone())
+            .collect();
+        #[cfg(not(test))]
+        std::thread::spawn(move || {
+            crate::services::fts::prune_indices(&alive);
+        });
+        #[cfg(test)]
+        let _ = alive;
         self.persist_workspaces();
     }
 

@@ -1,6 +1,6 @@
-use crate::services::fts::{self, SearchHit};
+use crate::services::fts::{self, token_spans, SearchHit};
 use crate::state::{kick_pending_document_loads, AppStore, OpenKind};
-use crate::types::{FileTreeEntry, TabItem};
+use crate::types::{FileFilterMode, TabItem};
 use crate::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::ui::input::Input;
 use dioxus::prelude::*;
@@ -16,92 +16,32 @@ pub struct FindInFilesProps {
     pub store: Signal<AppStore>,
 }
 
-fn collect_name_hits(entries: &[FileTreeEntry], query: &str, limit: usize) -> Vec<SearchHit> {
-    let query_lower = query.to_lowercase();
-    let mut hits = Vec::new();
-    walk_name_hits(entries, &query_lower, limit, &mut hits);
-    hits
-}
-
-fn walk_name_hits(
-    entries: &[FileTreeEntry],
-    query_lower: &str,
-    limit: usize,
-    hits: &mut Vec<SearchHit>,
-) {
-    for entry in entries {
-        if hits.len() >= limit {
-            return;
-        }
-        if entry.is_dir {
-            walk_name_hits(&entry.children, query_lower, limit, hits);
-            continue;
-        }
-        let name_hit = entry.name.to_lowercase().contains(query_lower);
-        let path_hit = entry
-            .path
-            .to_string_lossy()
-            .to_lowercase()
-            .contains(query_lower);
-        if name_hit || path_hit {
-            hits.push(SearchHit {
-                path: entry.path.clone(),
-                snippet: String::new(),
-                match_start: 0,
-                match_len: 0,
-                name_match: true,
-            });
-        }
-    }
-}
-
-fn merge_hits(mut name_hits: Vec<SearchHit>, fts_hits: Vec<SearchHit>, limit: usize) -> Vec<SearchHit> {
-    for fts_hit in fts_hits {
-        if let Some(existing) = name_hits.iter_mut().find(|hit| hit.path == fts_hit.path) {
-            if existing.snippet.is_empty() && !fts_hit.snippet.is_empty() {
-                existing.snippet = fts_hit.snippet;
-                existing.match_start = fts_hit.match_start;
-                existing.match_len = fts_hit.match_len;
-            }
-            existing.name_match = true;
-        } else {
-            name_hits.push(fts_hit);
-        }
-    }
-    name_hits.truncate(limit);
-    name_hits
-}
-
 fn spawn_find_search(
     query: String,
     tabs: Vec<TabItem>,
-    tree: Vec<FileTreeEntry>,
     root: Option<PathBuf>,
     has_index: bool,
     mut results: Signal<Vec<SearchHit>>,
     mut selected: Signal<usize>,
     mut is_searching: Signal<bool>,
-    gen: u32,
-    search_gen: Signal<u32>,
+    epoch: u64,
 ) {
     let trimmed = query.trim().to_string();
     if trimmed.is_empty() {
         results.set(Vec::new());
         selected.set(0);
+        is_searching.set(false);
         return;
     }
 
     is_searching.set(true);
     spawn(async move {
         let search_res = tokio::task::spawn_blocking(move || {
-            let name_hits = collect_name_hits(&tree, &trimmed, 50);
-            match fts::search_all(&trimmed, 50, &tabs, has_index, root.as_deref()) {
-                Ok(fts_hits) => merge_hits(name_hits, fts_hits, 50),
-                Err(_) => name_hits,
-            }
+            fts::search_all(&trimmed, 50, &tabs, has_index, root.as_deref(), epoch)
+                .unwrap_or_else(|_| Vec::new())
         })
         .await;
-        if search_gen() != gen {
+        if fts::current_epoch() != epoch {
             return;
         }
         is_searching.set(false);
@@ -122,23 +62,25 @@ pub fn FindInFiles(props: FindInFilesProps) -> Element {
     let mut results = use_signal(Vec::<SearchHit>::new);
     let mut selected = use_signal(|| 0usize);
     let mut is_indexing = use_signal(|| false);
-    let is_searching = use_signal(|| false);
-    let mut search_gen = use_signal(|| 0u32);
+    let mut is_searching = use_signal(|| false);
 
     let t = store().language.strings().find_in_files;
     let open = store().show_find_in_files;
+    let overlay_open = use_memo(move || store().show_find_in_files);
 
     use_effect(move || {
-        if !open {
+        if !overlay_open() {
+            is_searching.set(false);
             return;
         }
         query.set(String::new());
         results.set(Vec::new());
         selected.set(0);
+        is_searching.set(false);
+        is_indexing.set(false);
 
-        let root = store().opened_folder.clone();
-        let filter = store().file_filter_mode;
-        let needs_rebuild = root.as_ref().is_some_and(|dir| !fts::is_index_for(dir));
+        let root = store.peek().opened_folder.clone();
+        let needs_rebuild = root.as_ref().is_some_and(|dir| !fts::is_full_index_for(dir));
 
         if let Some(dir) = root {
             if needs_rebuild {
@@ -146,26 +88,26 @@ pub fn FindInFiles(props: FindInFilesProps) -> Element {
                 spawn(async move {
                     let dir_clone = dir.clone();
                     let res =
-                        tokio::task::spawn_blocking(move || fts::rebuild_root(dir_clone, filter))
+                        tokio::task::spawn_blocking(move || {
+                            fts::rebuild_root(dir_clone, FileFilterMode::AllFiles)
+                        })
                             .await;
                     is_indexing.set(false);
                     if res.ok().is_some_and(|r| r.is_ok()) {
                         let q = query();
                         if !q.trim().is_empty() {
-                            let s = store();
+                            let s = store.peek();
                             spawn_find_search(
                                 q,
                                 s.tabs.clone(),
-                                s.file_tree.clone(),
                                 s.opened_folder.clone(),
                                 s.opened_folder
                                     .as_ref()
-                                    .is_some_and(|d| fts::is_index_for(d)),
+                                    .is_some_and(|d| fts::is_full_index_for(d)),
                                 results,
                                 selected,
                                 is_searching,
-                                search_gen(),
-                                search_gen,
+                                fts::current_epoch(),
                             );
                         }
                     }
@@ -195,6 +137,8 @@ pub fn FindInFiles(props: FindInFilesProps) -> Element {
     });
 
     let mut close_overlay = move |()| {
+        let _ = fts::bump_epoch();
+        is_searching.set(false);
         store.write().set_find_in_files(false);
     };
 
@@ -203,6 +147,7 @@ pub fn FindInFiles(props: FindInFilesProps) -> Element {
             let path = hit.path;
             store.write().open_file_from_path(path, OpenKind::Preview);
             kick_pending_document_loads(store);
+            let _ = fts::bump_epoch();
             store.write().set_find_in_files(false);
             let q = search_text.trim().to_string();
             if !q.is_empty() {
@@ -266,25 +211,22 @@ pub fn FindInFiles(props: FindInFilesProps) -> Element {
                             oninput: move |evt: FormEvent| {
                                 let val = evt.value();
                                 query.set(val.clone());
-                                search_gen += 1;
-                                let my_gen = search_gen();
+                                let epoch = fts::bump_epoch();
                                 spawn(async move {
                                     tokio::time::sleep(SEARCH_DEBOUNCE).await;
-                                    if search_gen() != my_gen {
+                                    if fts::current_epoch() != epoch {
                                         return;
                                     }
-                                    let s = store();
+                                    let s = store.peek();
                                     spawn_find_search(
                                         val,
                                         s.tabs.clone(),
-                                        s.file_tree.clone(),
                                         s.opened_folder.clone(),
-                                        s.opened_folder.as_ref().is_some_and(|d| fts::is_index_for(d)),
+                                        s.opened_folder.as_ref().is_some_and(|d| fts::is_full_index_for(d)),
                                         results,
                                         selected,
                                         is_searching,
-                                        my_gen,
-                                        search_gen,
+                                        epoch,
                                     );
                                 });
                             },
@@ -322,7 +264,8 @@ pub fn FindInFiles(props: FindInFilesProps) -> Element {
                                     query.set(String::new());
                                     results.set(Vec::new());
                                     selected.set(0);
-                                    search_gen += 1;
+                                    is_searching.set(false);
+                                    let _ = fts::bump_epoch();
                                 },
                                 Icon { width: 12, height: 12, icon: LdX }
                             }
@@ -382,8 +325,6 @@ fn FindInFilesResultRow(props: FindInFilesResultRowProps) -> Element {
         "find-in-files-result"
     };
     let snippet = props.hit.snippet.clone();
-    let match_start = props.hit.match_start;
-    let match_len = props.hit.match_len;
     let query = props.query.clone();
 
     rsx! {
@@ -393,19 +334,26 @@ fn FindInFilesResultRow(props: FindInFilesResultRowProps) -> Element {
             onclick: move |_| props.onclick.call(()),
             Icon { width: 14, height: 14, icon: LdFileText, class: "shrink-0 text-[var(--text-muted)]" }
             div { class: "find-in-files-result-body",
-                HighlightedText {
+                TokenText {
                     text: name,
                     query: query.clone(),
-                    text_class: "find-in-files-result-name",
+                    class: "find-in-files-result-name",
+                    mark_class: "find-in-files-result-mark",
                 }
                 if !dir.is_empty() {
-                    span { class: "find-in-files-result-dir", "{dir}" }
+                    TokenText {
+                        text: dir,
+                        query: query.clone(),
+                        class: "find-in-files-result-dir",
+                        mark_class: "find-in-files-result-mark",
+                    }
                 }
                 if !snippet.is_empty() {
-                    SnippetText {
-                        snippet,
-                        match_start,
-                        match_len,
+                    TokenText {
+                        text: snippet,
+                        query: query.clone(),
+                        class: "find-in-files-result-snippet",
+                        mark_class: "find-in-files-result-mark",
                     }
                 }
             }
@@ -414,47 +362,18 @@ fn FindInFilesResultRow(props: FindInFilesResultRowProps) -> Element {
 }
 
 #[component]
-fn HighlightedText(text: String, query: String, text_class: &'static str) -> Element {
-    let query_trim = query.trim();
-    if query_trim.is_empty() {
-        return rsx! { span { class: "{text_class}", "{text}" } };
-    }
-    let lower = text.to_lowercase();
-    let needle = query_trim.to_lowercase();
-    let Some(pos) = lower.find(&needle) else {
-        return rsx! { span { class: "{text_class}", "{text}" } };
-    };
-    let end = pos + needle.len();
-    if !text.is_char_boundary(pos) || !text.is_char_boundary(end) {
-        return rsx! { span { class: "{text_class}", "{text}" } };
-    }
-    let (pre, rest) = text.split_at(pos);
-    let (mid, post) = rest.split_at(needle.len());
+fn TokenText(text: String, query: String, class: String, mark_class: String) -> Element {
+    let spans = token_spans(&text, &query);
     rsx! {
-        span { class: "{text_class}",
-            "{pre}"
-            span { class: "find-in-files-result-mark", "{mid}" }
-            "{post}"
-        }
-    }
-}
-
-#[component]
-fn SnippetText(snippet: String, match_start: usize, match_len: usize) -> Element {
-    let end = match_start.saturating_add(match_len);
-    if match_len == 0 || match_start >= snippet.len() || end > snippet.len()
-        || !snippet.is_char_boundary(match_start)
-        || !snippet.is_char_boundary(end)
-    {
-        return rsx! { span { class: "find-in-files-result-snippet", "{snippet}" } };
-    }
-    let (pre, rest) = snippet.split_at(match_start);
-    let (mid, post) = rest.split_at(match_len);
-    rsx! {
-        span { class: "find-in-files-result-snippet",
-            "{pre}"
-            span { class: "find-in-files-result-mark", "{mid}" }
-            "{post}"
+        span {
+            class: "{class}",
+            for (i, (marked, chunk)) in spans.into_iter().enumerate() {
+                if marked {
+                    mark { key: "{i}", class: "{mark_class}", "{chunk}" }
+                } else {
+                    span { key: "{i}", "{chunk}" }
+                }
+            }
         }
     }
 }
